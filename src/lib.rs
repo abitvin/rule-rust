@@ -17,7 +17,7 @@ enum Progress<'b, T> {
 }
 
 pub struct Rule<T, S> {
-    branch_fn: BranchFn<T, S>,
+    pub branch_fn: BranchFn<T, S>,
     parts: Vec<ScanFn<T, S>>,
 }
 
