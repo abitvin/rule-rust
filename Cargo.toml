@@ -1,6 +1,6 @@
 [package]
 name = "rule"
-version = "0.5.12"
+version = "0.6.0"
 authors = ["Vincent Van Ingen <foss@abitvin.net>"]
 
 [dependencies]

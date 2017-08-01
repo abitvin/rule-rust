@@ -605,7 +605,7 @@ impl<T, S> Rule<T, S>
             match unsafe { (*rule).run(new_ctx, &mut state) } {
                 Progress::Some(progress, newer_ctx) => {
                     if progress == 0 {
-                        return Progress::Some(0, ctx);
+                        return self.merge(ctx, newer_ctx, false, &mut state);
                     }
 
                     new_ctx = newer_ctx;
