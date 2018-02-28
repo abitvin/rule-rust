@@ -6,11 +6,10 @@ use rule::Rule;
 #[allow(unused_must_use)]
 fn clear()
 {
-    let mut dummy = 'X';
     let code = "Ello'";
     
-    let mut r: Rule<char, char> = Rule::new(None);
+    let mut r: Rule<char> = Rule::new(None);
     r.literal("Ello'");
     r.clear();
-    r.scan(&code, &mut dummy);   // Panic! We cleared the rule.
+    r.scan(&code);   // Panic! We cleared the rule.
 }

@@ -4,18 +4,16 @@ use rule::Rule;
 #[test]
 fn char_in()
 {
-    let mut dummy = 1234;
-
-    let mut digit = Rule::new(Some(Box::new(|_, l, _| vec![(l.chars().next().unwrap() as u32) - 48])));
+    let mut digit = Rule::new(Some(Box::new(|_, l| vec![(l.chars().next().unwrap() as u32) - 48])));
     digit.char_in('0', '9');
     
-    let mut af = Rule::new(Some(Box::new(|_, l, _| vec![(l.chars().next().unwrap() as u32) - 55])));
+    let mut af = Rule::new(Some(Box::new(|_, l| vec![(l.chars().next().unwrap() as u32) - 55])));
     af.char_in('A', 'F');
 
     let mut hex = Rule::new(None);
     hex.any_of(vec![digit, af]);
 
-    let mut parser: Rule<u32, i32> = Rule::new(Some(Box::new(|b, _, _| 
+    let mut parser: Rule<u32> = Rule::new(Some(Box::new(|b, _| 
     {
         let mut m = 1u32;
         let mut n = 0u32;
@@ -29,49 +27,49 @@ fn char_in()
     })));
     parser.between(1, 8, hex);
     
-    if let Ok(branches) = parser.scan("A", &mut dummy) {
+    if let Ok(branches) = parser.scan("A") {
         assert_eq!(branches[0], 10);
     }
     else {
         assert!(false);
     }
     
-    if let Ok(branches) = parser.scan("12345678", &mut dummy) {
+    if let Ok(branches) = parser.scan("12345678") {
         assert_eq!(branches[0], 305419896);
     }
     else {
         assert!(false);
     }
     
-    if let Ok(branches) = parser.scan("FF", &mut dummy) {
+    if let Ok(branches) = parser.scan("FF") {
         assert_eq!(branches[0], 255);
     }
     else {
         assert!(false);
     }
     
-    if let Ok(branches) = parser.scan("FFFFFFFF", &mut dummy) {
+    if let Ok(branches) = parser.scan("FFFFFFFF") {
         assert_eq!(branches[0], u32::max_value());
     }
     else {
         assert!(false);
     }
     
-    if let Ok(_) = parser.scan("FFFFFFFFF", &mut dummy) {
+    if let Ok(_) = parser.scan("FFFFFFFFF") {
         assert!(false);
     }
     else {
         assert!(true);
     }
     
-    if let Ok(_) = parser.scan("FFxFF", &mut dummy) {
+    if let Ok(_) = parser.scan("FFxFF") {
         assert!(false);
     }
     else {
         assert!(true);
     }
     
-    if let Ok(_) = parser.scan("", &mut dummy) {
+    if let Ok(_) = parser.scan("") {
         assert!(false);
     }
     else {

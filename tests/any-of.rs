@@ -4,20 +4,19 @@ use rule::Rule;
 #[test]
 fn any_of()
 {
-    let mut dummy = false;
     let code = "aaabbbccc";
     
-    let aaa_fn = |_: Vec<i32>, l: &str, _: &mut bool| {
+    let aaa_fn = |_: Vec<i32>, l: &str| {
         assert_eq!(l, "aaa");
         vec![111]
     }; 
     
-    let bbb_fn = |_: Vec<i32>, l: &str, _: &mut bool| {
+    let bbb_fn = |_: Vec<i32>, l: &str| {
         assert_eq!(l, "bbb");
         vec![222]
     };
     
-    let ccc_fn = |_: Vec<i32>, l: &str, _: &mut bool| {
+    let ccc_fn = |_: Vec<i32>, l: &str| {
         assert_eq!(l, "ccc");
         vec![333]
     };
@@ -34,10 +33,10 @@ fn any_of()
     let mut any_of_these = Rule::new(None);
     any_of_these.any_of(vec![aaa, bbb, ccc]);
     
-    let mut root: Rule<i32, bool> = Rule::new(None);
+    let mut root: Rule<i32> = Rule::new(None);
     root.exact(3, any_of_these);
     
-    if let Ok(branches) = root.scan(&code, &mut dummy) {
+    if let Ok(branches) = root.scan(&code) {
         assert_eq!(branches[0], 111);
         assert_eq!(branches[1], 222);
         assert_eq!(branches[2], 333);

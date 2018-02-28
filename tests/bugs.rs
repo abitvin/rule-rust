@@ -22,22 +22,20 @@ use rule::Rule;
 #[test]
 fn bug_0_5_12_test_empty_string()
 {
-    let block_fn = |b: Vec<u32>, _: &str, _: &mut bool| {
+    let block_fn = |b: Vec<u32>, _: &str| {
         assert_eq!(b.len(), 0);
         vec![1]
     };
 
-    let root_fn = |b: Vec<u32>, _: &str, _: &mut bool| {
+    let root_fn = |b: Vec<u32>, _: &str| {
         assert_eq!(b.len(), 1);
         b
     };
 
-    let stmt_fn = |b: Vec<u32>, _: &str, _: &mut bool| {
+    let stmt_fn = |b: Vec<u32>, _: &str| {
         assert_eq!(b.len(), 0);
         vec![7]
     };
-
-    let mut dummy = false;
 
     let mut ws = Rule::new(None);
     ws.literal(" ");
@@ -62,7 +60,7 @@ fn bug_0_5_12_test_empty_string()
 
     let code = "";
 
-    if let Ok(branches) = root.scan(code, &mut dummy) {
+    if let Ok(branches) = root.scan(code) {
         assert!(branches.len() == 1);
     }
     else {
@@ -73,22 +71,20 @@ fn bug_0_5_12_test_empty_string()
 #[test]
 fn bug_0_5_12_test_with_content()
 {
-    let block_fn = |b: Vec<u32>, _: &str, _: &mut bool| {
+    let block_fn = |b: Vec<u32>, _: &str| {
         assert_eq!(b.len(), 3);
         vec![1]
     };
 
-    let root_fn = |b: Vec<u32>, _: &str, _: &mut bool| {
+    let root_fn = |b: Vec<u32>, _: &str| {
         assert_eq!(b.len(), 1);
         b
     };
 
-    let stmt_fn = |b: Vec<u32>, _: &str, _: &mut bool| {
+    let stmt_fn = |b: Vec<u32>, _: &str| {
         assert_eq!(b.len(), 0);
         vec![7]
     };
-
-    let mut dummy = false;
 
     let mut ws = Rule::new(None);
     ws.literal(" ");
@@ -113,7 +109,7 @@ fn bug_0_5_12_test_with_content()
 
     let code = "  stmt    stmt   stmt  ";
 
-    if let Ok(branches) = root.scan(code, &mut dummy) {
+    if let Ok(branches) = root.scan(code) {
         assert!(branches.len() == 1);
     }
     else {

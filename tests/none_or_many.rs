@@ -4,22 +4,20 @@ use rule::Rule;
 #[test]
 fn none_or_many()
 {
-    let mut dummy = false;
-
-    let mut dot = Rule::new(Some(Box::new(|_, _, _| vec![true])));
+    let mut dot = Rule::new(Some(Box::new(|_, _| vec![true])));
     dot.literal(".");
             
-    let mut x = Rule::new(Some(Box::new(|_, _, _| vec![false])));
+    let mut x = Rule::new(Some(Box::new(|_, _| vec![false])));
     x.literal("x");
             
-    let mut code1: Rule<bool, bool> = Rule::new(Some(Box::new(|b, l, _|
+    let mut code1: Rule<bool> = Rule::new(Some(Box::new(|b, l|
     {
         assert_eq!(b.len(), 0);
         assert_eq!(l, "");
         Vec::new()
     })));
     
-    let mut code2: Rule<bool, bool> = Rule::new(Some(Box::new(|b, l, _|
+    let mut code2: Rule<bool> = Rule::new(Some(Box::new(|b, l|
     {
         assert_eq!(b.len(), 1);
         assert_eq!(b[0], false);
@@ -27,7 +25,7 @@ fn none_or_many()
         Vec::new()
     })));
     
-    let mut code3: Rule<bool, bool> = Rule::new(Some(Box::new(|b, l, _|
+    let mut code3: Rule<bool> = Rule::new(Some(Box::new(|b, l|
     {
         assert_eq!(b.len(), 2);
         assert_eq!(b[0], true);
@@ -36,7 +34,7 @@ fn none_or_many()
         Vec::new()
     })));
     
-    let mut code4: Rule<bool, bool> = Rule::new(Some(Box::new(|b, l, _|
+    let mut code4: Rule<bool> = Rule::new(Some(Box::new(|b, l|
     {
         assert_eq!(b.len(), 3);
         assert_eq!(b[0], false);
@@ -46,7 +44,7 @@ fn none_or_many()
         Vec::new()
     })));
     
-    let mut code5: Rule<bool, bool> = Rule::new(Some(Box::new(|b, l, _|
+    let mut code5: Rule<bool> = Rule::new(Some(Box::new(|b, l|
     {
         assert_eq!(b.len(), 4);
         assert_eq!(b[0], true);
@@ -58,23 +56,23 @@ fn none_or_many()
     })));
     
     unsafe {
-        if let Err(_) = code1.none_or_many_raw(&dot).none_or_many_raw(&x).none_or_many_raw(&dot).scan("", &mut dummy) {
+        if let Err(_) = code1.none_or_many_raw(&dot).none_or_many_raw(&x).none_or_many_raw(&dot).scan("") {
             assert!(false);
         }
         
-        if let Err(_) = code2.none_or_many_raw(&dot).none_or_many_raw(&x).none_or_many_raw(&dot).scan("x", &mut dummy) {
+        if let Err(_) = code2.none_or_many_raw(&dot).none_or_many_raw(&x).none_or_many_raw(&dot).scan("x") {
             assert!(false);
         }
         
-        if let Err(_) = code3.none_or_many_raw(&dot).none_or_many_raw(&x).none_or_many_raw(&dot).scan("..", &mut dummy) {
+        if let Err(_) = code3.none_or_many_raw(&dot).none_or_many_raw(&x).none_or_many_raw(&dot).scan("..") {
             assert!(false);
         }
         
-        if let Err(_) = code4.none_or_many_raw(&dot).none_or_many_raw(&x).none_or_many_raw(&dot).scan("xx.", &mut dummy) {
+        if let Err(_) = code4.none_or_many_raw(&dot).none_or_many_raw(&x).none_or_many_raw(&dot).scan("xx.") {
             assert!(false);
         }
         
-        if let Err(_) = code5.none_or_many_raw(&dot).none_or_many_raw(&x).none_or_many_raw(&dot).scan("..xx", &mut dummy) {
+        if let Err(_) = code5.none_or_many_raw(&dot).none_or_many_raw(&x).none_or_many_raw(&dot).scan("..xx") {
             assert!(false);
         }
     }

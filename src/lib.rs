@@ -7,7 +7,7 @@ use std::str::Chars;
 // TODO What is the best way to store the branch closure?
 // http://stackoverflow.com/questions/27831944/how-do-i-store-a-closure-in-rust
 // TODO Simplify `Option<Box<Fn<...>>>` if we can.
-pub type BranchFn<T, S> = Option<Box<Fn(Vec<T>, &str, &mut S) -> Vec<T>>>;
+pub type BranchFn<T> = Option<Box<Fn(Vec<T>, &str) -> Vec<T>>>;
 
 // TODO Better name and conceptual this enum isn't correct either.
 // We have Some(0) in our code and Some(0) is no progress! And `No` is a "no match" state. We need a third state. 
@@ -16,15 +16,14 @@ enum Progress<'b, T> {
     No(ScanCtx<'b, T>), // TODO We can do without the ScanCtx but we need to clone the errors.
 }
 
-pub struct Rule<T, S> {
-    pub branch_fn: BranchFn<T, S>,
-    parts: Vec<ScanFn<T, S>>,
+pub struct Rule<T> {
+    pub branch_fn: BranchFn<T>,
+    parts: Vec<ScanFn<T>>,
 }
 
 pub struct RuleError {
     pub index: i64,
     pub msg: String,
-    // TODO trail: TMeta[]
 }
 
 impl Clone for RuleError 
@@ -38,24 +37,24 @@ impl Clone for RuleError
     }
 }
 
-enum ScanFn<T, S> {
+enum ScanFn<T> {
     All,
     AllExcept(Vec<char>),
     Alter(Vec<(&'static str, &'static str)>),
     AlterString(Vec<(String, String)>),
-    AnyOfOwned(Vec<Rule<T, S>>),
-    AnyOfRaw(Vec<*const Rule<T, S>>),
+    AnyOfOwned(Vec<Rule<T>>),
+    AnyOfRaw(Vec<*const Rule<T>>),
     CharIn(char, char),
     Eof,
     Literal(&'static str),
     LiteralString(String),
-    NotOwned(Rule<T, S>),
-    NotRaw(*const Rule<T, S>),
-    RangeOwned(u64, u64, Rule<T, S>),
-    RangeRaw(u64, u64, *const Rule<T, S>),
+    NotOwned(Rule<T>),
+    NotRaw(*const Rule<T>),
+    RangeOwned(u64, u64, Rule<T>),
+    RangeRaw(u64, u64, *const Rule<T>),
 }
 
-impl<T, S> ScanFn<T, S> 
+impl<T> ScanFn<T> 
 {
     // TODO It's not really a shallow_clone...
     fn shallow_clone(&self) -> Self 
@@ -85,13 +84,11 @@ struct ScanCtx<'b, T> {
     errors: Vec<RuleError>,
     index: i64,    // TODO Change to usize? No, because we use an iterator now. Or yes if we don't use Chars.
     lexeme: String,
-    // TODO metaPushed: number;
-    // TODO trail: TMeta[];
 }
 
-impl<T, S> Rule<T, S>
+impl<T> Rule<T>
 {
-    pub fn new(branch_fn: BranchFn<T, S>) -> Self
+    pub fn new(branch_fn: BranchFn<T>) -> Self
     {
         Rule { 
             branch_fn: branch_fn,
@@ -145,7 +142,7 @@ impl<T, S> Rule<T, S>
         self
     }
     
-    pub fn any_of(&mut self, mut rules: Vec<Rule<T, S>>) -> &mut Self
+    pub fn any_of(&mut self, mut rules: Vec<Rule<T>>) -> &mut Self
     {
         match rules.len() {
             0 => panic!("You must specify rules."),
@@ -156,7 +153,7 @@ impl<T, S> Rule<T, S>
         self
     }
     
-    pub unsafe fn any_of_raw(&mut self, rules: Vec<*const Rule<T, S>>) -> &mut Self
+    pub unsafe fn any_of_raw(&mut self, rules: Vec<*const Rule<T>>) -> &mut Self
     {
         match rules.len() {
             0 => panic!("You must specify rules."),
@@ -167,37 +164,37 @@ impl<T, S> Rule<T, S>
         self
     }
     
-    pub fn at_least(&mut self, count: u64, rule: Rule<T, S>) -> &mut Self
+    pub fn at_least(&mut self, count: u64, rule: Rule<T>) -> &mut Self
     {
         self.parts.push(ScanFn::RangeOwned(count, u64::max_value(), rule));
         self
     }
     
-    pub unsafe fn at_least_raw(&mut self, count: u64, rule: *const Rule<T, S>) -> &mut Self
+    pub unsafe fn at_least_raw(&mut self, count: u64, rule: *const Rule<T>) -> &mut Self
     {
         self.parts.push(ScanFn::RangeRaw(count, u64::max_value(), rule));
         self
     }
     
-    pub fn at_most(&mut self, count: u64, rule: Rule<T, S>) -> &mut Self
+    pub fn at_most(&mut self, count: u64, rule: Rule<T>) -> &mut Self
     {
         self.parts.push(ScanFn::RangeOwned(0, count, rule));
         self
     }
     
-    pub unsafe fn at_most_raw(&mut self, count: u64, rule: *const Rule<T, S>) -> &mut Self
+    pub unsafe fn at_most_raw(&mut self, count: u64, rule: *const Rule<T>) -> &mut Self
     {
         self.parts.push(ScanFn::RangeRaw(0, count, rule));
         self
     }
     
-    pub fn between(&mut self, min: u64, max: u64, rule: Rule<T, S>) -> &mut Self
+    pub fn between(&mut self, min: u64, max: u64, rule: Rule<T>) -> &mut Self
     {
         self.parts.push(ScanFn::RangeOwned(min, max, rule));
         self
     }
     
-    pub unsafe fn between_raw(&mut self, min: u64, max: u64, rule: *const Rule<T, S>) -> &mut Self
+    pub unsafe fn between_raw(&mut self, min: u64, max: u64, rule: *const Rule<T>) -> &mut Self
     {
         self.parts.push(ScanFn::RangeRaw(min, max, rule));
         self
@@ -221,13 +218,13 @@ impl<T, S> Rule<T, S>
         self
     }
     
-    pub fn exact(&mut self, count: u64, rule: Rule<T, S>) -> &mut Self
+    pub fn exact(&mut self, count: u64, rule: Rule<T>) -> &mut Self
     {
         self.parts.push(ScanFn::RangeOwned(count, count, rule));
         self
     }
     
-    pub unsafe fn exact_raw(&mut self, count: u64, rule: *const Rule<T, S>) -> &mut Self
+    pub unsafe fn exact_raw(&mut self, count: u64, rule: *const Rule<T>) -> &mut Self
     {
         self.parts.push(ScanFn::RangeRaw(count, count, rule));
         self
@@ -253,56 +250,56 @@ impl<T, S> Rule<T, S>
         self
     }
     
-    pub fn maybe(&mut self, rule: Rule<T, S>) -> &mut Self
+    pub fn maybe(&mut self, rule: Rule<T>) -> &mut Self
     {
         self.parts.push(ScanFn::RangeOwned(0, 1, rule));
         self
     }
     
-    pub unsafe fn maybe_raw(&mut self, rule: *const Rule<T, S>) -> &mut Self
+    pub unsafe fn maybe_raw(&mut self, rule: *const Rule<T>) -> &mut Self
     {
         self.parts.push(ScanFn::RangeRaw(0, 1, rule));
         self
     }
     
-    pub fn none_or_many(&mut self, rule: Rule<T, S>) -> &mut Self
+    pub fn none_or_many(&mut self, rule: Rule<T>) -> &mut Self
     {
         self.parts.push(ScanFn::RangeOwned(0, u64::max_value(), rule));
         self
     }
     
-    pub unsafe fn none_or_many_raw(&mut self, rule: *const Rule<T, S>) -> &mut Self
+    pub unsafe fn none_or_many_raw(&mut self, rule: *const Rule<T>) -> &mut Self
     {
         self.parts.push(ScanFn::RangeRaw(0, u64::max_value(), rule));
         self
     }
     
-    pub fn not(&mut self, rule: Rule<T, S>) -> &mut Self
+    pub fn not(&mut self, rule: Rule<T>) -> &mut Self
     {
         self.parts.push(ScanFn::NotOwned(rule));
         self
     }
     
-    pub unsafe fn not_raw(&mut self, rule: *const Rule<T, S>) -> &mut Self
+    pub unsafe fn not_raw(&mut self, rule: *const Rule<T>) -> &mut Self
     {
         self.parts.push(ScanFn::NotRaw(rule));
         self
     }
     
-    pub fn one(&mut self, rule: Rule<T, S>) -> &mut Self
+    pub fn one(&mut self, rule: Rule<T>) -> &mut Self
     {
         self.parts.push(ScanFn::RangeOwned(1, 1, rule));
         self
     }
     
-    pub unsafe fn one_raw(&mut self, rule: *const Rule<T, S>) -> &mut Self
+    pub unsafe fn one_raw(&mut self, rule: *const Rule<T>) -> &mut Self
     {
         self.parts.push(ScanFn::RangeRaw(1, 1, rule));
         self
     }
     
     // TODO If we can add raw Rules then by defenition this `scan` function is unsafe.
-    pub fn scan(&self, code: &str, mut shared: &mut S) -> Result<Vec<T>, Vec<RuleError>>
+    pub fn scan(&self, code: &str) -> Result<Vec<T>, Vec<RuleError>>
     {
         let mut ctx = ScanCtx {
             branches: Vec::new(),
@@ -312,7 +309,7 @@ impl<T, S> Rule<T, S>
             lexeme: String::new(),
         };
     
-        match self.run(ctx, &mut shared) {
+        match self.run(ctx) {
             Progress::Some(_, new_ctx) => ctx = new_ctx,
             Progress::No(new_ctx) => return Err(new_ctx.errors),
         }
@@ -337,7 +334,7 @@ impl<T, S> Rule<T, S>
     }
 
     // TODO It's not really a shallow_clone...
-    pub unsafe fn shallow_clone(&self, branch_fn: BranchFn<T, S>) -> Self
+    pub unsafe fn shallow_clone(&self, branch_fn: BranchFn<T>) -> Self
     {
         Rule {
             branch_fn: branch_fn,
@@ -371,7 +368,7 @@ impl<T, S> Rule<T, S>
         new_ctx
     }
     
-    fn merge<'b>(&self, mut target: ScanCtx<'b, T>, mut source: ScanCtx<'b, T>, is_root_of_rule: bool, mut state: &mut S) -> Progress<'b, T>
+    fn merge<'b>(&self, mut target: ScanCtx<'b, T>, mut source: ScanCtx<'b, T>, is_root_of_rule: bool) -> Progress<'b, T>
     {
         /* TODO
         if (isRootOfRule)
@@ -390,7 +387,7 @@ impl<T, S> Rule<T, S>
         
         match self.branch_fn {
             Some(ref f) if is_root_of_rule => {
-                target.branches.append(&mut f(source.branches, &source.lexeme, &mut state));
+                target.branches.append(&mut f(source.branches, &source.lexeme));
             },
             _ => {
                 target.branches.append(&mut source.branches);
@@ -400,7 +397,7 @@ impl<T, S> Rule<T, S>
         Progress::Some(step as usize, target)
     }
     
-    fn run<'b>(&'b self, ctx: ScanCtx<'b, T>, mut shared: &mut S) -> Progress<T>
+    fn run<'b>(&'b self, ctx: ScanCtx<'b, T>) -> Progress<T>
     {
         if self.parts.len() == 0 {
             panic!("Rule is not defined.");
@@ -414,16 +411,16 @@ impl<T, S> Rule<T, S>
                 ScanFn::AllExcept(ref exclude) => self.scan_all_except_leaf(&exclude, new_ctx),
                 ScanFn::Alter(ref alter) => self.scan_alter_leaf(&alter, new_ctx),
                 ScanFn::AlterString(ref alter) => self.scan_alter_string_leaf(&alter, new_ctx),
-                ScanFn::AnyOfOwned(ref rules) => self.scan_any_of_owned(rules, new_ctx, &mut shared),
-                ScanFn::AnyOfRaw(ref rules) => self.scan_any_of_raw(rules, new_ctx, &mut shared),
+                ScanFn::AnyOfOwned(ref rules) => self.scan_any_of_owned(rules, new_ctx),
+                ScanFn::AnyOfRaw(ref rules) => self.scan_any_of_raw(rules, new_ctx),
                 ScanFn::CharIn(min, max) => self.scan_char_in_leaf(min, max, new_ctx),
                 ScanFn::Eof => self.scan_eof_leaf(new_ctx),
                 ScanFn::Literal(find) => self.scan_literal_leaf(&find, new_ctx),
                 ScanFn::LiteralString(ref text) => self.scan_literal_leaf(&text, new_ctx),
-                ScanFn::NotOwned(ref r) => self.scan_not(r as *const Rule<T, S>, new_ctx, &mut shared),
-                ScanFn::NotRaw(r) => self.scan_not(r, new_ctx, &mut shared),
-                ScanFn::RangeOwned(min, max, ref r) => self.scan_rule_range(min, max, r as *const Rule<T, S>, new_ctx, &mut shared),
-                ScanFn::RangeRaw(min, max, r) => self.scan_rule_range(min, max, r, new_ctx, &mut shared),
+                ScanFn::NotOwned(ref r) => self.scan_not(r as *const Rule<T>, new_ctx),
+                ScanFn::NotRaw(r) => self.scan_not(r, new_ctx),
+                ScanFn::RangeOwned(min, max, ref r) => self.scan_rule_range(min, max, r as *const Rule<T>, new_ctx),
+                ScanFn::RangeRaw(min, max, r) => self.scan_rule_range(min, max, r, new_ctx),
             };
 
             match progress {
@@ -432,7 +429,7 @@ impl<T, S> Rule<T, S>
             }
         }
         
-        self.merge(ctx, new_ctx, true, &mut shared)
+        self.merge(ctx, new_ctx, true)
     }
     
     // TODO What about a char with more codepoints?
@@ -505,26 +502,26 @@ impl<T, S> Rule<T, S>
         self.update_error(ctx, String::from("Alter characters not found on this position."))
     }
     
-    fn scan_any_of_owned<'b>(&'b self, rules: &'b Vec<Rule<T, S>>, ctx: ScanCtx<'b, T>, mut state: &mut S) -> Progress<T>
+    fn scan_any_of_owned<'b>(&'b self, rules: &'b Vec<Rule<T>>, ctx: ScanCtx<'b, T>) -> Progress<T>
     {
         for r in rules {
             let new_ctx = self.branch(&ctx, false);
 
-            if let Progress::Some(_, new_ctx) = r.run(new_ctx, &mut state) {
-                return self.merge(ctx, new_ctx, false, &mut state);
+            if let Progress::Some(_, new_ctx) = r.run(new_ctx) {
+                return self.merge(ctx, new_ctx, false);
             } 
         }
 
         Progress::No(ctx)
     }
     
-    fn scan_any_of_raw<'b>(&'b self, rules: &Vec<*const Rule<T, S>>, ctx: ScanCtx<'b, T>, mut state: &mut S) -> Progress<T>
+    fn scan_any_of_raw<'b>(&'b self, rules: &Vec<*const Rule<T>>, ctx: ScanCtx<'b, T>) -> Progress<T>
     {
         for r in rules {
             let new_ctx = self.branch(&ctx, false);
 
-            if let Progress::Some(_, new_ctx) = unsafe { (**r).run(new_ctx, &mut state) } {
-                return self.merge(ctx, new_ctx, false, &mut state);
+            if let Progress::Some(_, new_ctx) = unsafe { (**r).run(new_ctx) } {
+                return self.merge(ctx, new_ctx, false);
             } 
         }
 
@@ -588,24 +585,24 @@ impl<T, S> Rule<T, S>
         Progress::Some(step as usize, ctx)
     }
     
-    fn scan_not<'b>(&'b self, rule: *const Rule<T, S>, ctx: ScanCtx<'b, T>, mut state: &mut S) -> Progress<T>
+    fn scan_not<'b>(&'b self, rule: *const Rule<T>, ctx: ScanCtx<'b, T>) -> Progress<T>
     {
-        match unsafe { (*rule).run(self.branch(&ctx, false), &mut state) } {
+        match unsafe { (*rule).run(self.branch(&ctx, false)) } {
             Progress::Some(_, _) => Progress::No(ctx),
             Progress::No(_) => Progress::Some(0, ctx),
         }
     }
     
-    fn scan_rule_range<'b>(&'b self, min: u64, max: u64, rule: *const Rule<T, S>, ctx: ScanCtx<'b, T>, mut state: &mut S) -> Progress<T>
+    fn scan_rule_range<'b>(&'b self, min: u64, max: u64, rule: *const Rule<T>, ctx: ScanCtx<'b, T>) -> Progress<T>
     {
         let mut new_ctx = self.branch(&ctx, false);
         let mut count = 0u64;
 
         loop {
-            match unsafe { (*rule).run(new_ctx, &mut state) } {
+            match unsafe { (*rule).run(new_ctx) } {
                 Progress::Some(progress, newer_ctx) => {
                     if progress == 0 {
-                        return self.merge(ctx, newer_ctx, false, &mut state);
+                        return self.merge(ctx, newer_ctx, false);
                     }
 
                     new_ctx = newer_ctx;
@@ -623,7 +620,7 @@ impl<T, S> Rule<T, S>
         }
 
         if count >= min && count <= max {
-            self.merge(ctx, new_ctx, false, &mut state)
+            self.merge(ctx, new_ctx, false)
         }
         else {
             Progress::No(ctx)

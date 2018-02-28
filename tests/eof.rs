@@ -4,13 +4,12 @@ use rule::Rule;
 #[test]
 fn eof()
 {
-    let mut dummy = '@';
     let code = "123";
     
-    let mut r: Rule<char, char> = Rule::new(Some(Box::new(|_, _, _| vec!['A', 'B'] )));
+    let mut r: Rule<char> = Rule::new(Some(Box::new(|_, _| vec!['A', 'B'] )));
     r.literal("123").eof();
     
-    if let Ok(branches) = r.scan(&code, &mut dummy) {
+    if let Ok(branches) = r.scan(&code) {
         assert_eq!(branches[0], 'A');
         assert_eq!(branches[1], 'B');
     }
