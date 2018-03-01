@@ -96,15 +96,13 @@ impl<T> Rule<T>
         }
     }
 
-    // TODO Rename to `any_char`, also in TypeScript
-    pub fn all(&mut self) -> &mut Self
+    pub fn any_char(&mut self) -> &mut Self
     {
         self.parts.push(ScanFn::All);
         self
     }
     
-    // TODO Rename to `any_char_except`, also in TypeScript
-    pub fn all_except(&mut self, exclude: Vec<char>) -> &mut Self
+    pub fn any_char_except(&mut self, exclude: Vec<char>) -> &mut Self
     {
         if exclude.len() == 0 {
             panic!("List of excluded characters is empty.");
@@ -298,7 +296,7 @@ impl<T> Rule<T>
         self
     }
     
-    // TODO If we can add raw Rules then by defenition this `scan` function is unsafe.
+    // TODO If we can add raw Rules then by definition this `scan` function is unsafe.
     pub fn scan(&self, code: &str) -> Result<Vec<T>, Vec<RuleError>>
     {
         let mut ctx = ScanCtx {

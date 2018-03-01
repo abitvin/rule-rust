@@ -12,7 +12,7 @@ fn all()
     };
     
     let mut r: Rule<bool> = Rule::new(Some(Box::new(f)));
-    r.all().all().all().all().all().all().all();
+    r.any_char().any_char().any_char().any_char().any_char().any_char().any_char();
     
     if let Ok(branches) = r.scan(&code) {
         assert_eq!(branches[0], true);

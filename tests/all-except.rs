@@ -12,7 +12,7 @@ fn all_except()
     };
     
     let mut c = Rule::new(None);
-    c.all_except(vec!['A', 'B', 'C', 'D']);
+    c.any_char_except(vec!['A', 'B', 'C', 'D']);
     
     let mut r: Rule<u32> = Rule::new(Some(Box::new(f)));
     r.exact(3, c);
