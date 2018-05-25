@@ -1,40 +1,46 @@
+#![feature(nll)]
+
 extern crate rule;
 use rule::Rule;
 
 #[test]
-fn at_most()
-{
+fn at_most() {
     let code = "yyy";
     
-    let mut y = Rule::new(Some(Box::new(|_, _| vec![14] )));
+    let y = Rule::new(Some(Box::new(|_, _| vec![14] )));
     y.literal("y");
             
-    let mut root: Rule<i32> = Rule::new(None);
+    let test1: Rule<i32> = Rule::new(None);
+    test1.at_most(2, &y);
     
-    unsafe {
-        if let Ok(_) = root.at_most_raw(2, &y).scan(&code) {
-            assert!(false);
-        }
-        else {
-            assert!(true);
-        }
-        
-        if let Ok(branches) = root.clear().at_most_raw(3, &y).scan(&code) {
-            assert_eq!(branches[0], 14);
-            assert_eq!(branches[1], 14);
-            assert_eq!(branches[2], 14);
-        }
-        else {
-            assert!(false);
-        }
-        
-        if let Ok(branches) = root.clear().at_most_raw(4, &y).scan(&code) {
-            assert_eq!(branches[0], 14);
-            assert_eq!(branches[1], 14);
-            assert_eq!(branches[2], 14);
-        }
-        else {
-            assert!(false);
-        }
+    if let Ok(_) = test1.scan(&code) {
+        assert!(false);
+    }
+    else {
+        assert!(true);
+    }
+
+    let test2: Rule<i32> = Rule::new(None);
+    test2.at_most(3, &y);
+    
+    if let Ok(branches) = test2.scan(&code) {
+        assert_eq!(branches[0], 14);
+        assert_eq!(branches[1], 14);
+        assert_eq!(branches[2], 14);
+    }
+    else {
+        assert!(false);
+    }
+
+    let test3: Rule<i32> = Rule::new(None);
+    test3.at_most(4, &y);
+    
+    if let Ok(branches) = test3.scan(&code) {
+        assert_eq!(branches[0], 14);
+        assert_eq!(branches[1], 14);
+        assert_eq!(branches[2], 14);
+    }
+    else {
+        assert!(false);
     }
 }

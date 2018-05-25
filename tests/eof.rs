@@ -1,12 +1,13 @@
+#![feature(nll)]
+
 extern crate rule;
 use rule::Rule;
 
 #[test]
-fn eof()
-{
+fn eof() {
     let code = "123";
     
-    let mut r: Rule<char> = Rule::new(Some(Box::new(|_, _| vec!['A', 'B'] )));
+    let r: Rule<char> = Rule::new(Some(Box::new(|_, _| vec!['A', 'B'] )));
     r.literal("123").eof();
     
     if let Ok(branches) = r.scan(&code) {

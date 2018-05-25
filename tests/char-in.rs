@@ -1,20 +1,20 @@
+#![feature(nll)]
+
 extern crate rule;
 use rule::Rule;
 
 #[test]
-fn char_in()
-{
-    let mut digit = Rule::new(Some(Box::new(|_, l| vec![(l.chars().next().unwrap() as u32) - 48])));
+fn char_in() {
+    let digit = Rule::new(Some(Box::new(|_, l| vec![(l.chars().next().unwrap() as u32) - 48])));
     digit.char_in('0', '9');
     
-    let mut af = Rule::new(Some(Box::new(|_, l| vec![(l.chars().next().unwrap() as u32) - 55])));
+    let af = Rule::new(Some(Box::new(|_, l| vec![(l.chars().next().unwrap() as u32) - 55])));
     af.char_in('A', 'F');
 
-    let mut hex = Rule::new(None);
-    hex.any_of(vec![digit, af]);
+    let hex = Rule::new(None);
+    hex.any_of(vec![&digit, &af]);
 
-    let mut parser: Rule<u32> = Rule::new(Some(Box::new(|b, _| 
-    {
+    let parser: Rule<u32> = Rule::new(Some(Box::new(|b, _| {
         let mut m = 1u32;
         let mut n = 0u32;
         
@@ -25,7 +25,8 @@ fn char_in()
         
         vec![n]
     })));
-    parser.between(1, 8, hex);
+
+    parser.between(1, 8, &hex);
     
     if let Ok(branches) = parser.scan("A") {
         assert_eq!(branches[0], 10);

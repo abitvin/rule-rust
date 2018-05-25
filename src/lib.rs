@@ -1,24 +1,24 @@
-// Copyright (c) 2015-2016 Abitvin <foss@abitvin.net>
+// Copyright (c) 2015-2018 Vincent van Ingen <foss@abitvin.net>
 // Licensed under the MIT license <LICENSE.md or http://opensource.org/licenses/MIT>
 // This file may not be copied, modified, or distributed except according to those terms.
 
+//#![feature(nll)]
+
+use std::cell::RefCell;
 use std::str::Chars;
 
-// TODO What is the best way to store the branch closure?
-// http://stackoverflow.com/questions/27831944/how-do-i-store-a-closure-in-rust
-// TODO Simplify `Option<Box<Fn<...>>>` if we can.
 pub type BranchFn<T> = Option<Box<Fn(Vec<T>, &str) -> Vec<T>>>;
 
-// TODO Better name and conceptual this enum isn't correct either.
-// We have Some(0) in our code and Some(0) is no progress! And `No` is a "no match" state. We need a third state. 
-enum Progress<'b, T> {
-    Some(usize, ScanCtx<'b, T>),
-    No(ScanCtx<'b, T>), // TODO We can do without the ScanCtx but we need to clone the errors.
+enum Progress<'s, T: 's> {
+    Some(usize, ScanCtx<'s, T>),
+    No(ScanCtx<'s, T>), // TODO We can do without the ScanCtx but we need to clone the errors.
 }
 
-pub struct Rule<T> {
-    pub branch_fn: BranchFn<T>,
-    parts: Vec<ScanFn<T>>,
+pub struct Rule<'s, T: 's>(RefCell<_Rule<'s, T>>);
+
+struct _Rule<'s, T: 's> {
+    branch_fn: BranchFn<T>,
+    parts: Vec<ScanFn<'s, T>>,
 }
 
 pub struct RuleError {
@@ -26,10 +26,8 @@ pub struct RuleError {
     pub msg: String,
 }
 
-impl Clone for RuleError 
-{
-    fn clone(&self) -> Self
-    {
+impl Clone for RuleError {
+    fn clone(&self) -> Self {
         RuleError {
             index: self.index,
             msg: self.msg.clone(),
@@ -37,83 +35,116 @@ impl Clone for RuleError
     }
 }
 
-enum ScanFn<T> {
-    All,
-    AllExcept(Vec<char>),
+enum ScanFn<'s, T: 's> {
+    AnyChar,
+    AnyCharExcept(Vec<char>),
     Alter(Vec<(&'static str, &'static str)>),
     AlterString(Vec<(String, String)>),
-    AnyOfOwned(Vec<Rule<T>>),
-    AnyOfRaw(Vec<*const Rule<T>>),
+    AnyOf(Vec<&'s Rule<'s, T>>),
     CharIn(char, char),
     Eof,
     Literal(&'static str),
     LiteralString(String),
-    NotOwned(Rule<T>),
-    NotRaw(*const Rule<T>),
-    RangeOwned(u64, u64, Rule<T>),
-    RangeRaw(u64, u64, *const Rule<T>),
+    Not(&'s Rule<'s, T>),
+    Range(u64, u64, &'s Rule<'s, T>),
 }
 
-impl<T> ScanFn<T> 
-{
-    // TODO It's not really a shallow_clone...
-    fn shallow_clone(&self) -> Self 
-    {
-        match *self {
-            ScanFn::All => ScanFn::All,
-            ScanFn::AllExcept(ref v) => ScanFn::AllExcept(v.clone()),
-            ScanFn::Alter(ref v) => ScanFn::Alter(v.clone()),
-            ScanFn::AlterString(ref v) => ScanFn::AlterString(v.clone()),
-            ScanFn::AnyOfOwned(ref v) => ScanFn::AnyOfOwned(v.iter().map(|r| r.shallow_clone_b()).collect()),
-            ScanFn::AnyOfRaw(ref v) => ScanFn::AnyOfRaw(v.clone()),
-            ScanFn::CharIn(min, max) => ScanFn::CharIn(min, max),
-            ScanFn::Eof => ScanFn::Eof,
-            ScanFn::Literal(ref s) => ScanFn::Literal(s),
-            ScanFn::LiteralString(ref s) => ScanFn::LiteralString(s.clone()),
-            ScanFn::NotOwned(ref r) => ScanFn::NotOwned(r.shallow_clone_b()),
-            ScanFn::NotRaw(r) => ScanFn::NotRaw(r),
-            ScanFn::RangeOwned(min, max, ref rule) => ScanFn::RangeOwned(min, max, rule.shallow_clone_b()), 
-            ScanFn::RangeRaw(min, max, rule) => ScanFn::RangeRaw(min, max, rule),
-        }
-    }
-}
-
-struct ScanCtx<'b, T> {
+struct ScanCtx<'s, T: 's> {
     branches: Vec<T>,
-    code_iter: Chars<'b>,
+    code_iter: Chars<'s>,
     errors: Vec<RuleError>,
     index: i64,    // TODO Change to usize? No, because we use an iterator now. Or yes if we don't use Chars.
     lexeme: String,
 }
 
-impl<T> Rule<T>
-{
-    pub fn new(branch_fn: BranchFn<T>) -> Self
-    {
-        Rule { 
-            branch_fn: branch_fn,
-            parts: Vec::new(),
+impl<'s, T> ScanCtx<'s, T> {
+    fn new(code: &'s str) -> Self {
+        Self {
+            branches: Vec::new(),
+            code_iter: code.chars(),
+            errors: Vec::new(),
+            index: 0,
+            lexeme: String::new(),
         }
     }
 
-    pub fn any_char(&mut self) -> &mut Self
-    {
-        self.parts.push(ScanFn::All);
+    fn branch(self, is_root_of_rule: bool) -> (ScanCtx<'s, T>, ScanCtx<'s, T>) {
+        let new_ctx = ScanCtx {
+            branches: Vec::new(),
+            code_iter: self.code_iter.clone(),
+            errors: self.errors.clone(),
+            index: self.index,
+            lexeme: String::new(),
+            // TODO metaPushed: isRootOfRule ? 0 : ctx.metaPushed,
+            // TODO trail: ctx.trail.slice(0)
+        };
+
+        /* TODO
+        if (isRootOfRule && this._meta) {
+            newCtx.metaPushed++;
+            newCtx.trail.push(this._meta);
+        }
+        */
+        
+        (new_ctx, self)
+    }
+
+    fn merge_with(mut self, mut source: ScanCtx<'s, T>, is_root_of_rule: bool, branch_fn: &BranchFn<T>) -> Progress<'s, T> {
+        /* TODO
+        if (isRootOfRule)
+            while (source.metaPushed-- > 0)
+                source.trail.pop();
+        */
+            
+        let step = source.index - self.index;
+            
+        self.code_iter = source.code_iter;
+        self.errors = source.errors;
+        self.index = source.index;
+        self.lexeme.push_str(&source.lexeme.to_string());
+        // TODO self.metaPushed = 0;
+        // TODO self.trail = source.trail;
+        
+        match branch_fn {
+            Some(ref f) if is_root_of_rule => {
+                self.branches.append(&mut f(source.branches, &source.lexeme));
+            },
+            _ => {
+                self.branches.append(&mut source.branches);
+            },
+        }
+        
+        Progress::Some(step as usize, self)
+    }
+}
+
+impl<'s, T> Rule<'s, T> {
+    pub fn new(branch_fn: BranchFn<T>) -> Self {
+        Rule { 
+            0: RefCell::new(_Rule {
+                branch_fn: branch_fn,
+                parts: Vec::new(),
+            })
+        }
+    }
+
+    pub fn any_char(&self) -> &Self {
+        let mut r = self.0.borrow_mut();
+        r.parts.push(ScanFn::AnyChar);
         self
     }
     
-    pub fn any_char_except(&mut self, exclude: Vec<char>) -> &mut Self
-    {
+    pub fn any_char_except(&self, exclude: Vec<char>) -> &Self {
         if exclude.len() == 0 {
             panic!("List of excluded characters is empty.");
         }
         
-        self.parts.push(ScanFn::AllExcept(exclude));
+        let mut r = self.0.borrow_mut();
+        r.parts.push(ScanFn::AnyCharExcept(exclude));
         self
     }
     
-    pub fn alter(&mut self, list: Vec<(&'static str, &'static str)>) -> &mut Self
-    {
+    pub fn alter(&self, list: Vec<(&'static str, &'static str)>) -> &Self {
         if list.len() == 0 {
             panic!("List is empty.");
         }
@@ -122,12 +153,12 @@ impl<T> Rule<T>
             panic!("The strings in the list must be minimal one character long.");
         }
         
-        self.parts.push(ScanFn::Alter(list));
+        let mut r = self.0.borrow_mut();
+        r.parts.push(ScanFn::Alter(list));
         self
     }
 
-    pub fn alter_string(&mut self, list: Vec<(String, String)>) -> &mut Self
-    {
+    pub fn alter_string(&self, list: Vec<(String, String)>) -> &Self {
         if list.len() == 0 {
             panic!("List is empty.");
         }
@@ -136,177 +167,112 @@ impl<T> Rule<T>
             panic!("The strings in the list must be minimal one character long.");
         }
         
-        self.parts.push(ScanFn::AlterString(list));
+        let mut r = self.0.borrow_mut();
+        r.parts.push(ScanFn::AlterString(list));
         self
     }
     
-    pub fn any_of(&mut self, mut rules: Vec<Rule<T>>) -> &mut Self
-    {
+    pub fn any_of(&self, rules: Vec<&'s Rule<'s, T>>) -> &Self {
+        let mut r = self.0.borrow_mut();
+
         match rules.len() {
             0 => panic!("You must specify rules."),
-            1 => self.parts.push(ScanFn::RangeOwned(1, 1, rules.pop().unwrap())),
-            _ => self.parts.push(ScanFn::AnyOfOwned(rules)),
+            1 => r.parts.push(ScanFn::Range(1, 1, rules[0])),
+            _ => r.parts.push(ScanFn::AnyOf(rules)),  
         };
-        
+
         self
     }
     
-    pub unsafe fn any_of_raw(&mut self, rules: Vec<*const Rule<T>>) -> &mut Self
-    {
-        match rules.len() {
-            0 => panic!("You must specify rules."),
-            1 => self.parts.push(ScanFn::RangeRaw(1, 1, rules[0])),
-            _ => self.parts.push(ScanFn::AnyOfRaw(rules)),  
-        };
-        
+    pub fn at_least(&self, count: u64, rule: &'s Rule<'s, T>) -> &Self {
+        let mut r = self.0.borrow_mut();
+        r.parts.push(ScanFn::Range(count, u64::max_value(), rule));
         self
     }
     
-    pub fn at_least(&mut self, count: u64, rule: Rule<T>) -> &mut Self
-    {
-        self.parts.push(ScanFn::RangeOwned(count, u64::max_value(), rule));
+    pub fn at_most(&self, count: u64, rule: &'s Rule<'s, T>) -> &Self {
+        let mut r = self.0.borrow_mut();
+        r.parts.push(ScanFn::Range(0, count, rule));
         self
     }
     
-    pub unsafe fn at_least_raw(&mut self, count: u64, rule: *const Rule<T>) -> &mut Self
-    {
-        self.parts.push(ScanFn::RangeRaw(count, u64::max_value(), rule));
+    pub fn between(&self, min: u64, max: u64, rule: &'s Rule<'s, T>) -> &Self {
+        let mut r = self.0.borrow_mut();
+        r.parts.push(ScanFn::Range(min, max, rule));
         self
     }
     
-    pub fn at_most(&mut self, count: u64, rule: Rule<T>) -> &mut Self
-    {
-        self.parts.push(ScanFn::RangeOwned(0, count, rule));
+    pub fn char_in(&self, min: char, max: char) -> &Self {
+        let mut r = self.0.borrow_mut();
+        r.parts.push(ScanFn::CharIn(min, max));
         self
     }
     
-    pub unsafe fn at_most_raw(&mut self, count: u64, rule: *const Rule<T>) -> &mut Self
-    {
-        self.parts.push(ScanFn::RangeRaw(0, count, rule));
+    pub fn eof(&self) -> &Self {
+        let mut r = self.0.borrow_mut();
+        r.parts.push(ScanFn::Eof);
         self
     }
     
-    pub fn between(&mut self, min: u64, max: u64, rule: Rule<T>) -> &mut Self
-    {
-        self.parts.push(ScanFn::RangeOwned(min, max, rule));
+    pub fn exact(&self, count: u64, rule: &'s Rule<'s, T>) -> &Self {
+        let mut r = self.0.borrow_mut();
+        r.parts.push(ScanFn::Range(count, count, rule));
         self
     }
     
-    pub unsafe fn between_raw(&mut self, min: u64, max: u64, rule: *const Rule<T>) -> &mut Self
-    {
-        self.parts.push(ScanFn::RangeRaw(min, max, rule));
-        self
-    }
-    
-    pub fn char_in(&mut self, min: char, max: char) -> &mut Self
-    {
-        self.parts.push(ScanFn::CharIn(min, max));
-        self
-    }
-    
-    pub fn clear(&mut self) -> &mut Self
-    {
-        self.parts.clear();
-        self
-    }
-    
-    pub fn eof(&mut self) -> &mut Self
-    {
-        self.parts.push(ScanFn::Eof);
-        self
-    }
-    
-    pub fn exact(&mut self, count: u64, rule: Rule<T>) -> &mut Self
-    {
-        self.parts.push(ScanFn::RangeOwned(count, count, rule));
-        self
-    }
-    
-    pub unsafe fn exact_raw(&mut self, count: u64, rule: *const Rule<T>) -> &mut Self
-    {
-        self.parts.push(ScanFn::RangeRaw(count, count, rule));
-        self
-    }
-    
-    pub fn literal(&mut self, text: &'static str) -> &mut Self
-    {
+    pub fn literal(&self, text: &'static str) -> &Self {
         if text.len() < 1 {
             panic!("Literal text must at least 1 character long.");
         }
-            
-        self.parts.push(ScanFn::Literal(&text));
+
+        let mut r = self.0.borrow_mut();   
+        r.parts.push(ScanFn::Literal(&text));
         self
     }
 
-    pub fn literal_string(&mut self, text: String) -> &mut Self
-    {
+    pub fn literal_string(&self, text: String) -> &Self {
         if text.len() < 1 {
             panic!("Literal text must at least 1 character long.");
         }
             
-        self.parts.push(ScanFn::LiteralString(text));
+        let mut r = self.0.borrow_mut();
+        r.parts.push(ScanFn::LiteralString(text));
+        self
+    }
+
+    pub fn maybe(&self, rule: &'s Rule<'s, T>) -> &Self {
+        let mut r = self.0.borrow_mut();
+        r.parts.push(ScanFn::Range(0, 1, rule));
+        self
+    }
+
+    pub fn none_or_many(&self, rule: &'s Rule<'s, T>) -> &Self {
+        let mut r = self.0.borrow_mut();
+        r.parts.push(ScanFn::Range(0, u64::max_value(), rule));
         self
     }
     
-    pub fn maybe(&mut self, rule: Rule<T>) -> &mut Self
-    {
-        self.parts.push(ScanFn::RangeOwned(0, 1, rule));
+    pub fn not(&self, rule: &'s Rule<'s, T>) -> &Self {
+        let mut r = self.0.borrow_mut();
+        r.parts.push(ScanFn::Not(rule));
         self
     }
     
-    pub unsafe fn maybe_raw(&mut self, rule: *const Rule<T>) -> &mut Self
-    {
-        self.parts.push(ScanFn::RangeRaw(0, 1, rule));
+    pub fn one(&self, rule: &'s Rule<'s, T>) -> &Self {
+        let mut r = self.0.borrow_mut();
+        r.parts.push(ScanFn::Range(1, 1, rule));
         self
     }
-    
-    pub fn none_or_many(&mut self, rule: Rule<T>) -> &mut Self
-    {
-        self.parts.push(ScanFn::RangeOwned(0, u64::max_value(), rule));
-        self
-    }
-    
-    pub unsafe fn none_or_many_raw(&mut self, rule: *const Rule<T>) -> &mut Self
-    {
-        self.parts.push(ScanFn::RangeRaw(0, u64::max_value(), rule));
-        self
-    }
-    
-    pub fn not(&mut self, rule: Rule<T>) -> &mut Self
-    {
-        self.parts.push(ScanFn::NotOwned(rule));
-        self
-    }
-    
-    pub unsafe fn not_raw(&mut self, rule: *const Rule<T>) -> &mut Self
-    {
-        self.parts.push(ScanFn::NotRaw(rule));
-        self
-    }
-    
-    pub fn one(&mut self, rule: Rule<T>) -> &mut Self
-    {
-        self.parts.push(ScanFn::RangeOwned(1, 1, rule));
-        self
-    }
-    
-    pub unsafe fn one_raw(&mut self, rule: *const Rule<T>) -> &mut Self
-    {
-        self.parts.push(ScanFn::RangeRaw(1, 1, rule));
-        self
-    }
-    
-    // TODO If we can add raw Rules then by definition this `scan` function is unsafe.
-    pub fn scan(&self, code: &str) -> Result<Vec<T>, Vec<RuleError>>
-    {
-        let mut ctx = ScanCtx {
-            branches: Vec::new(),
-            code_iter: code.chars(),
-            errors: Vec::new(),
-            index: 0,
-            lexeme: String::new(),
-        };
-    
+
+    pub fn scan(&'s self, code: &'s str) -> Result<Vec<T>, Vec<RuleError>> {
+        let r = self.0.borrow();
+            
+        if r.parts.len() == 0 {
+            panic!("Rule is not defined.");
+        }
+        
+        let mut ctx = ScanCtx::new(code);
+
         match self.run(ctx) {
             Progress::Some(_, new_ctx) => ctx = new_ctx,
             Progress::No(new_ctx) => return Err(new_ctx.errors),
@@ -330,95 +296,25 @@ impl<T> Rule<T>
             Ok(ctx.branches)
         }
     }
-
-    // TODO It's not really a shallow_clone...
-    pub unsafe fn shallow_clone(&self, branch_fn: BranchFn<T>) -> Self
-    {
-        Rule {
-            branch_fn: branch_fn,
-            parts: self.parts.iter().map(|p| p.shallow_clone()).collect(),
-        }
-    }
-
-    // Private functions
-
-    #[allow(unused_variables)]   // TODO This warning is for `is_root_of_rule` which we must implement.
-    fn branch<'b>(&'b self, ctx: &ScanCtx<'b, T>, is_root_of_rule: bool) -> ScanCtx<T>
-    {
-        let new_ctx = ScanCtx {
-            branches: Vec::new(),
-            code_iter: ctx.code_iter.clone(),
-            errors: ctx.errors.clone(),
-            index: ctx.index,
-            lexeme: String::new(),
-            // TODO metaPushed: isRootOfRule ? 0 : ctx.metaPushed,
-            // TODO trail: ctx.trail.slice(0)
-        };
-
-        /* TODO
-        if (isRootOfRule && this._meta)
-        {
-            newCtx.metaPushed++;
-            newCtx.trail.push(this._meta);
-        }
-        */
-        
-        new_ctx
-    }
     
-    fn merge<'b>(&self, mut target: ScanCtx<'b, T>, mut source: ScanCtx<'b, T>, is_root_of_rule: bool) -> Progress<'b, T>
-    {
-        /* TODO
-        if (isRootOfRule)
-            while (source.metaPushed-- > 0)
-                source.trail.pop();
-        */
-            
-        let step = source.index - target.index;
-            
-        target.code_iter = source.code_iter;
-        target.errors = source.errors;
-        target.index = source.index;
-        target.lexeme.push_str(&source.lexeme.to_string());
-        // TODO target.metaPushed = 0;
-        // TODO target.trail = source.trail;
+    fn run(&'s self, ctx: ScanCtx<'s, T>) -> Progress<T> {
+        let (mut new_ctx, ctx) = ctx.branch(true);
         
-        match self.branch_fn {
-            Some(ref f) if is_root_of_rule => {
-                target.branches.append(&mut f(source.branches, &source.lexeme));
-            },
-            _ => {
-                target.branches.append(&mut source.branches);
-            },
-        }
-        
-        Progress::Some(step as usize, target)
-    }
-    
-    fn run<'b>(&'b self, ctx: ScanCtx<'b, T>) -> Progress<T>
-    {
-        if self.parts.len() == 0 {
-            panic!("Rule is not defined.");
-        }
-        
-        let mut new_ctx = self.branch(&ctx, true);
-        
-        for p in &self.parts {
+        let r = self.0.borrow();
+
+        for p in &r.parts {
             let progress = match *p {
-                ScanFn::All => self.scan_all_leaf(new_ctx),
-                ScanFn::AllExcept(ref exclude) => self.scan_all_except_leaf(&exclude, new_ctx),
+                ScanFn::AnyChar => self.scan_any_char_leaf(new_ctx),
+                ScanFn::AnyCharExcept(ref exclude) => self.scan_any_char_except_leaf(&exclude, new_ctx),
                 ScanFn::Alter(ref alter) => self.scan_alter_leaf(&alter, new_ctx),
                 ScanFn::AlterString(ref alter) => self.scan_alter_string_leaf(&alter, new_ctx),
-                ScanFn::AnyOfOwned(ref rules) => self.scan_any_of_owned(rules, new_ctx),
-                ScanFn::AnyOfRaw(ref rules) => self.scan_any_of_raw(rules, new_ctx),
+                ScanFn::AnyOf(ref rules) => self.scan_any_of(rules, new_ctx),
                 ScanFn::CharIn(min, max) => self.scan_char_in_leaf(min, max, new_ctx),
                 ScanFn::Eof => self.scan_eof_leaf(new_ctx),
-                ScanFn::Literal(find) => self.scan_literal_leaf(&find, new_ctx),
+                ScanFn::Literal(text) => self.scan_literal_leaf(&text, new_ctx),
                 ScanFn::LiteralString(ref text) => self.scan_literal_leaf(&text, new_ctx),
-                ScanFn::NotOwned(ref r) => self.scan_not(r as *const Rule<T>, new_ctx),
-                ScanFn::NotRaw(r) => self.scan_not(r, new_ctx),
-                ScanFn::RangeOwned(min, max, ref r) => self.scan_rule_range(min, max, r as *const Rule<T>, new_ctx),
-                ScanFn::RangeRaw(min, max, r) => self.scan_rule_range(min, max, r, new_ctx),
+                ScanFn::Not(r) => self.scan_not(r, new_ctx),
+                ScanFn::Range(min, max, r) => self.scan_rule_range(min, max, r, new_ctx),
             };
 
             match progress {
@@ -427,12 +323,11 @@ impl<T> Rule<T>
             }
         }
         
-        self.merge(ctx, new_ctx, true)
+        ctx.merge_with(new_ctx, true, &r.branch_fn)
     }
-    
+
     // TODO What about a char with more codepoints?
-    fn scan_all_except_leaf<'b>(&'b self, exclude: &Vec<char>, mut ctx: ScanCtx<'b, T>) -> Progress<T>
-    {
+    fn scan_any_char_except_leaf(&'s self, exclude: &Vec<char>, mut ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
         let n = ctx.code_iter.next();
         
         if let Some(c) = n {
@@ -448,10 +343,8 @@ impl<T> Rule<T>
             self.update_error(ctx, String::from("End of code while checking for not allowed character."))
         }
     }
-    
-    // TODO What about a char with more codepoints?
-    fn scan_all_leaf<'b>(&'b self, mut ctx: ScanCtx<'b, T>) -> Progress<T> 
-    {
+
+    fn scan_any_char_leaf(&self, mut ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
         let n = ctx.code_iter.next();
         
         if let Some(c) = n {
@@ -463,9 +356,8 @@ impl<T> Rule<T>
             self.update_error(ctx, String::from("End of code while checking for not allowed character."))
         }
     }
-    
-    fn scan_alter_leaf<'b>(&'b self, list: &Vec<(&'static str, &'static str)>, mut ctx: ScanCtx<'b, T>) -> Progress<T>
-    {
+
+    fn scan_alter_leaf(&self, list: &Vec<(&'static str, &'static str)>, mut ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
         for alter in list {
             let find = alter.0;
             let len = find.chars().count();
@@ -481,9 +373,8 @@ impl<T> Rule<T>
 
         self.update_error(ctx, String::from("Alter characters not found on this position."))
     }
-
-    fn scan_alter_string_leaf<'b>(&'b self, list: &Vec<(String, String)>, mut ctx: ScanCtx<'b, T>) -> Progress<T>
-    {
+    
+    fn scan_alter_string_leaf(&self, list: &Vec<(String, String)>, mut ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
         for alter in list {
             let find = &alter.0;
             let len = find.chars().count();
@@ -500,34 +391,24 @@ impl<T> Rule<T>
         self.update_error(ctx, String::from("Alter characters not found on this position."))
     }
     
-    fn scan_any_of_owned<'b>(&'b self, rules: &'b Vec<Rule<T>>, ctx: ScanCtx<'b, T>) -> Progress<T>
-    {
-        for r in rules {
-            let new_ctx = self.branch(&ctx, false);
+    fn scan_any_of(&self, rules: &Vec<&'s Rule<'s, T>>, ctx: ScanCtx<'s, T>) -> Progress<'s,T> {
+        let (mut new_ctx, mut ctx) = ctx.branch(false);
 
+        for r in rules {
             if let Progress::Some(_, new_ctx) = r.run(new_ctx) {
-                return self.merge(ctx, new_ctx, false);
+                let r = self.0.borrow();
+                return ctx.merge_with(new_ctx, false, &r.branch_fn);
             } 
+
+            let ctxs = ctx.branch(false);
+            new_ctx = ctxs.0;
+            ctx = ctxs.1;
         }
 
         Progress::No(ctx)
     }
     
-    fn scan_any_of_raw<'b>(&'b self, rules: &Vec<*const Rule<T>>, ctx: ScanCtx<'b, T>) -> Progress<T>
-    {
-        for r in rules {
-            let new_ctx = self.branch(&ctx, false);
-
-            if let Progress::Some(_, new_ctx) = unsafe { (**r).run(new_ctx) } {
-                return self.merge(ctx, new_ctx, false);
-            } 
-        }
-
-        Progress::No(ctx)
-    }
-    
-    fn scan_char_in_leaf<'b>(&'b self, min: char, max: char, mut ctx: ScanCtx<'b, T>) -> Progress<T>
-    {
+    fn scan_char_in_leaf(&self, min: char, max: char, mut ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
         let c = ctx.code_iter.next();
 
         match c {
@@ -547,8 +428,7 @@ impl<T> Rule<T>
         }
     }
     
-    fn scan_eof_leaf<'b>(&'b self, mut ctx: ScanCtx<'b, T>) -> Progress<T>
-    {
+    fn scan_eof_leaf(&self, mut ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
         if let None = ctx.code_iter.next() {
             ctx.index += 1;
             Progress::Some(1, ctx)
@@ -558,8 +438,7 @@ impl<T> Rule<T>
         }
     }
     
-    fn scan_literal_leaf<'b>(&'b self, find: &str, mut ctx: ScanCtx<'b, T>) -> Progress<T> 
-    {
+    fn scan_literal_leaf(&self, find: &str, mut ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
         let iter = find.chars();
         let mut step = 0;
             
@@ -582,25 +461,26 @@ impl<T> Rule<T>
         ctx.lexeme.push_str(find);
         Progress::Some(step as usize, ctx)
     }
-    
-    fn scan_not<'b>(&'b self, rule: *const Rule<T>, ctx: ScanCtx<'b, T>) -> Progress<T>
-    {
-        match unsafe { (*rule).run(self.branch(&ctx, false)) } {
+
+    fn scan_not(&self, rule: &'s Rule<'s, T>, ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
+        let (new_ctx, ctx) = ctx.branch(false);
+
+        match rule.run(new_ctx) {
             Progress::Some(_, _) => Progress::No(ctx),
             Progress::No(_) => Progress::Some(0, ctx),
         }
     }
-    
-    fn scan_rule_range<'b>(&'b self, min: u64, max: u64, rule: *const Rule<T>, ctx: ScanCtx<'b, T>) -> Progress<T>
-    {
-        let mut new_ctx = self.branch(&ctx, false);
+
+    fn scan_rule_range(&self, min: u64, max: u64, rule: &'s Rule<'s, T>, ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
+        let (mut new_ctx, ctx) = ctx.branch(false);
         let mut count = 0u64;
 
         loop {
-            match unsafe { (*rule).run(new_ctx) } {
+            match rule.run(new_ctx) {
                 Progress::Some(progress, newer_ctx) => {
                     if progress == 0 {
-                        return self.merge(ctx, newer_ctx, false);
+                        let r = self.0.borrow();
+                        return ctx.merge_with(newer_ctx, false, &r.branch_fn);
                     }
 
                     new_ctx = newer_ctx;
@@ -618,28 +498,15 @@ impl<T> Rule<T>
         }
 
         if count >= min && count <= max {
-            self.merge(ctx, new_ctx, false)
+            let r = self.0.borrow();
+            ctx.merge_with(new_ctx, false, &r.branch_fn)
         }
         else {
             Progress::No(ctx)
         }
     }
 
-    // TODO Better name
-    fn shallow_clone_b(&self) -> Self
-    {
-        if self.branch_fn.is_some() {
-            panic!("Could not `shallow_clone` because a rule part intergral of the root rule you want to `shallow_clone` has a branch_fn we cannot clone.");
-        }
-
-        Rule {
-            branch_fn: None,
-            parts: self.parts.iter().map(|p| p.shallow_clone()).collect(),
-        }
-    }
-
-    fn update_error<'b>(&'b self, mut ctx: ScanCtx<'b, T>, error_msg: String) -> Progress<T>
-    {
+    fn update_error(&self, mut ctx: ScanCtx<'s, T>, error_msg: String) -> Progress<'s, T> {
         if ctx.errors.len() != 0 {
             let err_idx = ctx.errors[0].index;
                 
@@ -660,4 +527,4 @@ impl<T> Rule<T>
             
         Progress::No(ctx)
     }
-}    
+}

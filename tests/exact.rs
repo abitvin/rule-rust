@@ -1,46 +1,55 @@
+#![feature(nll)]
+
 extern crate rule;
 use rule::Rule;
 
 #[test]
-fn exact()
-{
+fn exact() {
     let code = "..........";
     
-    let mut dot = Rule::new(Some(Box::new(|_, _| vec!['.'] )));
+    let dot = Rule::new(Some(Box::new(|_, _| vec!['.'] )));
     dot.literal(".");
             
-    let mut nope = Rule::new(Some(Box::new(|_, _| vec!['x'] )));
+    let nope = Rule::new(Some(Box::new(|_, _| vec!['x'] )));
     nope.literal("nope");
             
-    let mut root: Rule<char> = Rule::new(None);
+    let test1: Rule<char> = Rule::new(None);
+    test1.exact(10, &dot);
     
-    unsafe {
-        if let Ok(branches) = root.exact_raw(10, &dot).scan(&code) {
-            assert!(branches.len() == 10 && branches.into_iter().any(|c| c == '.'));
-        }
-        else {
-            assert!(false);
-        }
-        
-        if let Ok(_) = root.clear().exact_raw(9, &dot).scan(&code) {
-            assert!(false);
-        }
-        else {
-            assert!(true);
-        }
-        
-        if let Ok(_) = root.clear().exact_raw(11, &dot).scan(&code) {
-            assert!(false);
-        }
-        else {
-            assert!(true);
-        }
-        
-        if let Ok(branches) = root.clear().exact_raw(0, &nope).exact_raw(10, &dot).exact_raw(0, &nope).scan(&code) {
-            assert!(branches.len() == 10 && branches.into_iter().any(|c| c == '.'));
-        }
-        else {
-            assert!(false);
-        }
+    if let Ok(branches) = test1.scan(&code) {
+        assert!(branches.len() == 10 && branches.into_iter().any(|c| c == '.'));
+    }
+    else {
+        assert!(false);
+    }
+
+    let test2: Rule<char> = Rule::new(None);
+    test2.exact(9, &dot);
+    
+    if let Ok(_) = test2.scan(&code) {
+        assert!(false);
+    }
+    else {
+        assert!(true);
+    }
+
+    let test3: Rule<char> = Rule::new(None);
+    test3.exact(11, &dot);
+
+    if let Ok(_) = test3.scan(&code) {
+        assert!(false);
+    }
+    else {
+        assert!(true);
+    }
+
+    let test4: Rule<char> = Rule::new(None);
+    test4.exact(0, &nope).exact(10, &dot).exact(0, &nope);
+
+    if let Ok(branches) = test4.scan(&code) {
+        assert!(branches.len() == 10 && branches.into_iter().any(|c| c == '.'));
+    }
+    else {
+        assert!(false);
     }
 }

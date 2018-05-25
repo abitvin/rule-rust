@@ -1,3 +1,5 @@
+#![feature(nll)]
+
 /*
 
     The following bug was in Rule v0.5.12.
@@ -20,8 +22,7 @@ extern crate rule;
 use rule::Rule;
 
 #[test]
-fn bug_0_5_12_test_empty_string()
-{
+fn bug_0_5_12_test_empty_string() {
     let block_fn = |b: Vec<u32>, _: &str| {
         assert_eq!(b.len(), 0);
         vec![1]
@@ -37,26 +38,26 @@ fn bug_0_5_12_test_empty_string()
         vec![7]
     };
 
-    let mut ws = Rule::new(None);
+    let ws = Rule::new(None);
     ws.literal(" ");
 
-    let mut none_or_many_ws = Rule::new(None);
-    none_or_many_ws.none_or_many(ws);
+    let none_or_many_ws = Rule::new(None);
+    none_or_many_ws.none_or_many(&ws);
 
-    let mut stmt = Rule::new(Some(Box::new(stmt_fn)));
+    let stmt = Rule::new(Some(Box::new(stmt_fn)));
     stmt.literal("stmt");
 
-    let mut ws_plus_stmt = Rule::new(None);
-    unsafe { ws_plus_stmt.one_raw(&none_or_many_ws).one_raw(&stmt); }
+    let ws_plus_stmt = Rule::new(None);
+    ws_plus_stmt.one(&none_or_many_ws).one(&stmt);
     
-    let mut stmts = Rule::new(None);
-    stmts.one(stmt).none_or_many(ws_plus_stmt);
+    let stmts = Rule::new(None);
+    stmts.one(&stmt).none_or_many(&ws_plus_stmt);
     
-    let mut block = Rule::new(Some(Box::new(block_fn)));
-    block.maybe(stmts);
+    let block = Rule::new(Some(Box::new(block_fn)));
+    block.maybe(&stmts);
     
-    let mut root = Rule::new(Some(Box::new(root_fn)));
-    unsafe { root.one_raw(&none_or_many_ws).one(block).one_raw(&none_or_many_ws); }
+    let root = Rule::new(Some(Box::new(root_fn)));
+    root.one(&none_or_many_ws).one(&block).one(&none_or_many_ws);
 
     let code = "";
 
@@ -69,8 +70,7 @@ fn bug_0_5_12_test_empty_string()
 }
 
 #[test]
-fn bug_0_5_12_test_with_content()
-{
+fn bug_0_5_12_test_with_content() {
     let block_fn = |b: Vec<u32>, _: &str| {
         assert_eq!(b.len(), 3);
         vec![1]
@@ -86,26 +86,26 @@ fn bug_0_5_12_test_with_content()
         vec![7]
     };
 
-    let mut ws = Rule::new(None);
+    let ws = Rule::new(None);
     ws.literal(" ");
 
-    let mut none_or_many_ws = Rule::new(None);
-    none_or_many_ws.none_or_many(ws);
+    let none_or_many_ws = Rule::new(None);
+    none_or_many_ws.none_or_many(&ws);
 
-    let mut stmt = Rule::new(Some(Box::new(stmt_fn)));
+    let stmt = Rule::new(Some(Box::new(stmt_fn)));
     stmt.literal("stmt");
 
-    let mut ws_plus_stmt = Rule::new(None);
-    unsafe { ws_plus_stmt.one_raw(&none_or_many_ws).one_raw(&stmt); }
+    let ws_plus_stmt = Rule::new(None);
+    ws_plus_stmt.one(&none_or_many_ws).one(&stmt);
     
-    let mut stmts = Rule::new(None);
-    stmts.one(stmt).none_or_many(ws_plus_stmt);
+    let stmts = Rule::new(None);
+    stmts.one(&stmt).none_or_many(&ws_plus_stmt);
     
-    let mut block = Rule::new(Some(Box::new(block_fn)));
-    block.maybe(stmts);
+    let block = Rule::new(Some(Box::new(block_fn)));
+    block.maybe(&stmts);
     
-    let mut root = Rule::new(Some(Box::new(root_fn)));
-    unsafe { root.one_raw(&none_or_many_ws).one(block).one_raw(&none_or_many_ws); }
+    let root = Rule::new(Some(Box::new(root_fn)));
+    root.one(&none_or_many_ws).one(&block).one(&none_or_many_ws);
 
     let code = "  stmt    stmt   stmt  ";
 

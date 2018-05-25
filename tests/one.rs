@@ -1,22 +1,23 @@
+#![feature(nll)]
+
 extern crate rule;
 use rule::Rule;
 
 #[test]
-fn one()
-{
+fn one() {
     let code = "onetwothree";
     
-    let mut one: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![1] )));
+    let one: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![1] )));
     one.literal("one");
     
-    let mut two: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![2] )));
+    let two: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![2] )));
     two.literal("two");
     
-    let mut three: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![3] )));
+    let three: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![3] )));
     three.literal("three");
     
-    let mut root: Rule<i32> = Rule::new(None);
-    root.one(one).one(two).one(three);
+    let root: Rule<i32> = Rule::new(None);
+    root.one(&one).one(&two).one(&three);
     
     if let Ok(branches) = root.scan(&code) {
         assert_eq!(branches[0], 1);

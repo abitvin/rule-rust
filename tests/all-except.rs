@@ -1,21 +1,22 @@
+#![feature(nll)]
+
 extern crate rule;
 use rule::Rule;
 
 #[test]
-fn all_except()
-{
+fn all_except() {
     let code = "abc";
-    
+
     let f = |_: Vec<u32>, l: &str| {
         assert_eq!(l, "abc");
         vec![0u32, 1u32, 2u32, 3u32]
     };
     
-    let mut c = Rule::new(None);
+    let c = Rule::new(None);
     c.any_char_except(vec!['A', 'B', 'C', 'D']);
     
-    let mut r: Rule<u32> = Rule::new(Some(Box::new(f)));
-    r.exact(3, c);
+    let r: Rule<u32> = Rule::new(Some(Box::new(f)));
+    r.exact(3, &c);
     
     if let Ok(branches) = r.scan(&code) {
         assert_eq!(branches[0], 0u32);

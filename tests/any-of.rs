@@ -1,9 +1,10 @@
+#![feature(nll)]
+
 extern crate rule;
 use rule::Rule;
 
 #[test]
-fn any_of()
-{
+fn any_of() {
     let code = "aaabbbccc";
     
     let aaa_fn = |_: Vec<i32>, l: &str| {
@@ -21,20 +22,20 @@ fn any_of()
         vec![333]
     };
     
-    let mut aaa = Rule::new(Some(Box::new(aaa_fn)));
+    let aaa = Rule::new(Some(Box::new(aaa_fn)));
     aaa.literal("aaa");
     
-    let mut bbb = Rule::new(Some(Box::new(bbb_fn)));
+    let bbb = Rule::new(Some(Box::new(bbb_fn)));
     bbb.literal("bbb");
     
-    let mut ccc = Rule::new(Some(Box::new(ccc_fn)));
+    let ccc = Rule::new(Some(Box::new(ccc_fn)));
     ccc.literal("ccc");
     
-    let mut any_of_these = Rule::new(None);
-    any_of_these.any_of(vec![aaa, bbb, ccc]);
+    let any_of_these = Rule::new(None);
+    any_of_these.any_of(vec![&aaa, &bbb, &ccc]);
     
-    let mut root: Rule<i32> = Rule::new(None);
-    root.exact(3, any_of_these);
+    let root: Rule<i32> = Rule::new(None);
+    root.exact(3, &any_of_these);
     
     if let Ok(branches) = root.scan(&code) {
         assert_eq!(branches[0], 111);

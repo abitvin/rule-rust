@@ -1,9 +1,10 @@
+#![feature(nll)]
+
 extern crate rule;
 use rule::Rule;
 
 #[test]
-fn all()
-{
+fn all() {
     let code = "abcdefg";
     
     let f = |_: Vec<bool>, l: &str| {
@@ -11,7 +12,7 @@ fn all()
         vec![true, false, false, true]
     };
     
-    let mut r: Rule<bool> = Rule::new(Some(Box::new(f)));
+    let r: Rule<bool> = Rule::new(Some(Box::new(f)));
     r.any_char().any_char().any_char().any_char().any_char().any_char().any_char();
     
     if let Ok(branches) = r.scan(&code) {

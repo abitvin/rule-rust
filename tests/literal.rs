@@ -1,13 +1,13 @@
+#![feature(nll)]
+
 extern crate rule;
 use rule::Rule;
 
 #[test]
-fn literal()
-{
+fn literal() {
     let code = "y̆y̆y̆x̆";
     
-    let mut r: Rule<u64> = Rule::new(Some(Box::new(|_, l| 
-    {
+    let r: Rule<u64> = Rule::new(Some(Box::new(|_, l| {
         assert_eq!(l, "y̆y̆y̆x̆");
         vec![7777u64, 8888u64, 9999u64]
     })));

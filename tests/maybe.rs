@@ -1,9 +1,10 @@
+#![feature(nll)]
+
 extern crate rule;
 use rule::Rule;
 
 #[test]
-fn maybe()
-{
+fn maybe() {
     let codes = vec![
         "xxx",
         "...xxx",
@@ -11,14 +12,14 @@ fn maybe()
         "...xxx...",
     ];
     
-    let mut dots = Rule::new(None);
+    let dots = Rule::new(None);
     dots.literal("...");
             
-    let mut xxx = Rule::new(Some(Box::new(|_, _| vec!['x'] )));
+    let xxx = Rule::new(Some(Box::new(|_, _| vec!['x'] )));
     xxx.literal("xxx");
             
-    let mut root: Rule<char> = Rule::new(None);
-    unsafe { root.maybe_raw(&dots).one(xxx).maybe_raw(&dots); }
+    let root: Rule<char> = Rule::new(None);
+    root.maybe(&dots).one(&xxx).maybe(&dots);
     
     for c in codes {
         if let Ok(branches) = root.scan(&c) {
