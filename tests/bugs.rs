@@ -1,5 +1,3 @@
-#![feature(nll)]
-
 /*
 
     The following bug was in Rule v0.5.12.

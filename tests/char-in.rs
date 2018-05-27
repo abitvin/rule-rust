@@ -1,5 +1,3 @@
-#![feature(nll)]
-
 extern crate rule;
 use rule::Rule;
 
