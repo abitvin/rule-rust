@@ -19,18 +19,18 @@ impl Calc {
         let num = Rule::new(Some(Box::new(|_, l| vec![l.parse().unwrap()])));
         num.at_least(1, &digit);
 
-        let brackets = Rule::new(None);
-        brackets.literal("(").one(&expr).literal(")"); 
+        let group = Rule::new(None);
+        group.literal("(").one(&expr).literal(")"); 
 
         let mul_right = Rule::new(None);
         mul_right.literal("*").one(&mul);
-        mul.any_of(vec![&num, &brackets]).maybe(&mul_right);
+        mul.any_of(vec![&num, &group]).maybe(&mul_right);
 
         let add_right = Rule::new(None);
         add_right.literal("+").one(&add);
         add.one(&mul).maybe(&add_right);
 
-        expr.any_of(vec![&add, &brackets]);
+        expr.any_of(vec![&add, &group]);
 
         Self { expr }
     }
