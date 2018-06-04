@@ -7,17 +7,17 @@ fn any_of() {
     
     let aaa_fn = |_: Vec<i32>, l: &str| {
         assert_eq!(l, "aaa");
-        vec![111]
+        111
     }; 
     
     let bbb_fn = |_: Vec<i32>, l: &str| {
         assert_eq!(l, "bbb");
-        vec![222]
+        222
     };
     
     let ccc_fn = |_: Vec<i32>, l: &str| {
         assert_eq!(l, "ccc");
-        vec![333]
+        333
     };
     
     let aaa = Rule::new(Some(Box::new(aaa_fn)));

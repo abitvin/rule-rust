@@ -5,13 +5,13 @@ use rule::Rule;
 fn one() {
     let code = "onetwothree";
     
-    let one: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![1] )));
+    let one: Rule<i32> = Rule::new(Some(Box::new(|_, _| 1)));
     one.literal("one");
     
-    let two: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![2] )));
+    let two: Rule<i32> = Rule::new(Some(Box::new(|_, _| 2)));
     two.literal("two");
     
-    let three: Rule<i32> = Rule::new(Some(Box::new(|_, _| vec![3] )));
+    let three: Rule<i32> = Rule::new(Some(Box::new(|_, _| 3)));
     three.literal("three");
     
     let root: Rule<i32> = Rule::new(None);

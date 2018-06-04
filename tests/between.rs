@@ -5,7 +5,7 @@ use rule::Rule;
 fn between() {
     let code = "zzz";
     
-    let z = Rule::new(Some(Box::new(|_, _| vec![34])));
+    let z = Rule::new(Some(Box::new(|_, _| 34)));
     z.literal("z");
             
     let test1: Rule<i32> = Rule::new(None);

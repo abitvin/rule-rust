@@ -5,10 +5,10 @@ use rule::Rule;
 fn exact() {
     let code = "..........";
     
-    let dot = Rule::new(Some(Box::new(|_, _| vec!['.'] )));
+    let dot = Rule::new(Some(Box::new(|_, _| '.')));
     dot.literal(".");
             
-    let nope = Rule::new(Some(Box::new(|_, _| vec!['x'] )));
+    let nope = Rule::new(Some(Box::new(|_, _| 'x')));
     nope.literal("nope");
             
     let test1: Rule<char> = Rule::new(None);

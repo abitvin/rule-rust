@@ -13,7 +13,7 @@ fn maybe() {
     let dots = Rule::new(None);
     dots.literal("...");
             
-    let xxx = Rule::new(Some(Box::new(|_, _| vec!['x'] )));
+    let xxx = Rule::new(Some(Box::new(|_, _| 'x')));
     xxx.literal("xxx");
             
     let root: Rule<char> = Rule::new(None);

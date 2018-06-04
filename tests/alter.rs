@@ -18,7 +18,7 @@ fn alter() {
 
     let f = |_: Vec<i32>, l: &str| {
         assert_eq!(l, "<AAA<BBB>CCC>");
-        vec![111, 222]
+        111
     }; 
     
     let r: Rule<i32> = Rule::new(Some(Box::new(f)));
@@ -26,7 +26,6 @@ fn alter() {
     
     if let Ok(branches) = r.scan(&code) {
         assert_eq!(branches[0], 111);
-        assert_eq!(branches[1], 222);
     }
     else {
         assert!(false);

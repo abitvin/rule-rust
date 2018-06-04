@@ -10,13 +10,13 @@ struct Calc {
 impl Calc {
     fn new() -> Self {
         let expr: Rule<f64> = Rule::new(None);
-        let add = Rule::new(Some(Box::new(|b, _| if b.len() == 1 { vec![b[0]] } else { vec![b[0] + b[1]] } )));
-        let mul = Rule::new(Some(Box::new(|b, _| if b.len() == 1 { vec![b[0]] } else { vec![b[0] * b[1]] } )));
+        let add: Rule<f64> = Rule::new(Some(Box::new(|b, _| if b.len() == 1 { b[0] } else { b[0] + b[1] } )));
+        let mul: Rule<f64> = Rule::new(Some(Box::new(|b, _| if b.len() == 1 { b[0] } else { b[0] * b[1] } )));
 
         let digit = Rule::new(None);
         digit.char_in('0', '9');
 
-        let num = Rule::new(Some(Box::new(|_, l| vec![l.parse().unwrap()])));
+        let num = Rule::new(Some(Box::new(|_, l| l.parse().unwrap())));
         num.at_least(1, &digit);
 
         let group = Rule::new(None);

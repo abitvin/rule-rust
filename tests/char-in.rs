@@ -3,10 +3,10 @@ use rule::Rule;
 
 #[test]
 fn char_in() {
-    let digit = Rule::new(Some(Box::new(|_, l| vec![(l.chars().next().unwrap() as u32) - 48])));
+    let digit = Rule::new(Some(Box::new(|_, l| (l.chars().next().unwrap() as u32) - 48)));
     digit.char_in('0', '9');
     
-    let af = Rule::new(Some(Box::new(|_, l| vec![(l.chars().next().unwrap() as u32) - 55])));
+    let af = Rule::new(Some(Box::new(|_, l| (l.chars().next().unwrap() as u32) - 55)));
     af.char_in('A', 'F');
 
     let hex = Rule::new(None);
@@ -21,7 +21,7 @@ fn char_in() {
             m <<= 4;
         }
         
-        vec![n]
+        n
     })));
 
     parser.between(1, 8, &hex);

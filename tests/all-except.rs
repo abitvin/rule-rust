@@ -7,7 +7,7 @@ fn all_except() {
 
     let f = |_: Vec<u32>, l: &str| {
         assert_eq!(l, "abc");
-        vec![0u32, 1u32, 2u32, 3u32]
+        123
     };
     
     let c = Rule::new(None);
@@ -17,10 +17,7 @@ fn all_except() {
     r.exact(3, &c);
     
     if let Ok(branches) = r.scan(&code) {
-        assert_eq!(branches[0], 0u32);
-        assert_eq!(branches[1], 1u32);
-        assert_eq!(branches[2], 2u32);
-        assert_eq!(branches[3], 3u32);
+        assert_eq!(branches[0], 123);
     }
     else {
         assert!(false);

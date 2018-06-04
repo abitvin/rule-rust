@@ -6,7 +6,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::str::Chars;
 
-pub type BranchFn<T> = Option<Box<Fn(Vec<T>, &str) -> Vec<T>>>;
+pub type BranchFn<T> = Option<Box<Fn(Vec<T>, &str) -> T>>;
 
 enum Progress<'s, T> {
     Some(usize, ScanCtx<'s, T>),
@@ -26,6 +26,7 @@ struct _Rule<T> {
     parts: Vec<ScanFn<T>>,
 }
 
+#[derive(Debug)]
 pub struct RuleError {
     pub index: i64,
     pub msg: String,
@@ -112,7 +113,7 @@ impl<'s, T> ScanCtx<'s, T> {
         
         match branch_fn {
             Some(ref f) if is_root_of_rule => {
-                self.branches.append(&mut f(source.branches, &source.lexeme));
+                self.branches.push(f(source.branches, &source.lexeme));
             },
             _ => {
                 self.branches.append(&mut source.branches);

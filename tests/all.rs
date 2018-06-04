@@ -7,7 +7,7 @@ fn all() {
     
     let f = |_: Vec<bool>, l: &str| {
         assert_eq!(l, "abcdefg");
-        vec![true, false, false, true]
+        true
     };
     
     let r: Rule<bool> = Rule::new(Some(Box::new(f)));
@@ -15,9 +15,6 @@ fn all() {
     
     if let Ok(branches) = r.scan(&code) {
         assert_eq!(branches[0], true);
-        assert_eq!(branches[1], false);
-        assert_eq!(branches[2], false);
-        assert_eq!(branches[3], true);
     }
     else {
         assert!(false);

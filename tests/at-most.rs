@@ -5,7 +5,7 @@ use rule::Rule;
 fn at_most() {
     let code = "yyy";
     
-    let y = Rule::new(Some(Box::new(|_, _| vec![14] )));
+    let y = Rule::new(Some(Box::new(|_, _| 14)));
     y.literal("y");
             
     let test1: Rule<i32> = Rule::new(None);

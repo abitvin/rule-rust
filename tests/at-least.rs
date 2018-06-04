@@ -5,7 +5,7 @@ use rule::Rule;
 fn at_least() {
     let code = "xxxx";
     
-    let x = Rule::new(Some(Box::new(|_, _| vec![10])));
+    let x = Rule::new(Some(Box::new(|_, _| 10)));
     x.literal("x");
     
     let test1: Rule<i32> = Rule::new(None);
