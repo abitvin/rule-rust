@@ -1,7 +1,5 @@
 extern crate rule;
 use rule::{Rule, RuleError};
-use std::cell::RefCell;
-use std::rc::Rc;
 
 struct Calc {
     expr: Rule<f64>,

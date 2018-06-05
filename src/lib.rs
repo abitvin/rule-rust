@@ -74,42 +74,25 @@ impl<'s, T> ScanCtx<'s, T> {
         }
     }
 
-    fn branch(self, is_root_of_rule: bool) -> (ScanCtx<'s, T>, ScanCtx<'s, T>) {
+    fn branch(self) -> (ScanCtx<'s, T>, ScanCtx<'s, T>) {
         let new_ctx = ScanCtx {
             branches: Vec::new(),
             code_iter: self.code_iter.clone(),
             errors: self.errors.clone(),
             index: self.index,
             lexeme: String::new(),
-            // TODO metaPushed: isRootOfRule ? 0 : ctx.metaPushed,
-            // TODO trail: ctx.trail.slice(0)
         };
 
-        /* TODO
-        if (isRootOfRule && this._meta) {
-            newCtx.metaPushed++;
-            newCtx.trail.push(this._meta);
-        }
-        */
-        
         (new_ctx, self)
     }
 
     fn merge_with(mut self, mut source: ScanCtx<'s, T>, is_root_of_rule: bool, branch_fn: &BranchFn<T>) -> Progress<'s, T> {
-        /* TODO
-        if (isRootOfRule)
-            while (source.metaPushed-- > 0)
-                source.trail.pop();
-        */
-            
         let step = source.index - self.index;
             
         self.code_iter = source.code_iter;
         self.errors = source.errors;
         self.index = source.index;
         self.lexeme.push_str(&source.lexeme.to_string());
-        // TODO self.metaPushed = 0;
-        // TODO self.trail = source.trail;
         
         match branch_fn {
             Some(ref f) if is_root_of_rule => {
@@ -309,7 +292,7 @@ struct Scanner { }
 
 impl Scanner {
     fn run<'s, T>(&self, rule: &Rule<T>, ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
-        let (mut new_ctx, ctx) = ctx.branch(true);
+        let (mut new_ctx, ctx) = ctx.branch();
         
         let r = rule.0.borrow();
 
@@ -403,7 +386,7 @@ impl Scanner {
     }
     
     fn scan_any_of<'s, T>(&self, rules: &Vec<Rule<T>>, ctx: ScanCtx<'s, T>) -> Progress<'s,T> {
-        let (mut new_ctx, mut ctx) = ctx.branch(false);
+        let (mut new_ctx, mut ctx) = ctx.branch();
 
         for r in rules {
             if let Progress::Some(_, new_ctx) = self.run(r, new_ctx) {
@@ -411,7 +394,7 @@ impl Scanner {
                 return ctx.merge_with(new_ctx, false, &r.branch_fn);
             } 
 
-            let ctxs = ctx.branch(false);
+            let ctxs = ctx.branch();
             new_ctx = ctxs.0;
             ctx = ctxs.1;
         }
@@ -474,7 +457,7 @@ impl Scanner {
     }
     
     fn scan_not<'s, T>(&self, rule: &Rule<T>, ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
-        let (new_ctx, ctx) = ctx.branch(false);
+        let (new_ctx, ctx) = ctx.branch();
 
         match self.run(rule, new_ctx) {
             Progress::Some(_, _) => Progress::No(ctx),
@@ -483,7 +466,7 @@ impl Scanner {
     }
     
     fn scan_rule_range<'s, T>(&self, min: u64, max: u64, rule: &Rule<T>, ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
-        let (mut new_ctx, ctx) = ctx.branch(false);
+        let (mut new_ctx, ctx) = ctx.branch();
         let mut count = 0u64;
         
         loop {
@@ -533,7 +516,6 @@ impl Scanner {
         ctx.errors.push(RuleError {
             index: ctx.index,
             msg: error_msg,
-            // TODO trail: newCtx.trail.slice(0)
         });
             
         Progress::No(ctx)
