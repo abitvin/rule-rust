@@ -11,8 +11,8 @@ use std::str::Chars;
 pub type BranchFn<T> = Option<Box<Fn(Vec<T>, &str) -> T>>;
 
 enum Progress<'s, T> {
-    Some(usize, ScanCtx<'s, T>),
-    No(ScanCtx<'s, T>), // TODO We can do without the ScanCtx but we need to clone the errors.
+    Some(usize, ScanCtx<'s, T>),        // TODO Make struct to be more readable.
+    No(ScanCtx<'s, T>),
 }
 
 pub struct Rule<T>(Rc<RefCell<_Rule<T>>>);
@@ -31,7 +31,7 @@ struct _Rule<T> {
 
 #[derive(Debug)]
 pub struct RuleError {
-    pub index: i64,
+    pub index: usize,
     pub msg: String,
 }
 
@@ -83,9 +83,9 @@ enum ScanFn<T> {
 struct ScanCtx<'s, T> {
     branches: Vec<T>,
     code_iter: Chars<'s>,
-    err_idx: i64,
+    err_idx: usize,
     err_msg: Option<Rc<String>>,
-    index: i64,                 // TODO Change to usize? No, because we use an iterator now. Or yes if we don't use Chars.
+    index: usize,
     lexeme: String,
 }
 
@@ -114,7 +114,7 @@ impl<'s, T> ScanCtx<'s, T> {
         (new_ctx, self)
     }
 
-    fn merge_with(mut self, mut source: ScanCtx<'s, T>, is_root_of_rule: bool, branch_fn: &BranchFn<T>) -> Progress<'s, T> {
+    fn merge_with(mut self, mut source: ScanCtx<'s, T>, is_rule: bool, branch_fn: &BranchFn<T>) -> Progress<'s, T> {
         let step = source.index - self.index;
             
         if source.err_idx > self.err_idx {
@@ -127,15 +127,11 @@ impl<'s, T> ScanCtx<'s, T> {
         self.lexeme.push_str(&source.lexeme.to_string());
         
         match branch_fn {
-            Some(ref f) if is_root_of_rule => {
-                self.branches.push(f(source.branches, &source.lexeme));
-            },
-            _ => {
-                self.branches.append(&mut source.branches);
-            },
+            Some(ref f) if is_rule => self.branches.push(f(source.branches, &source.lexeme)),
+            _ => self.branches.append(&mut source.branches),
         }
         
-        Progress::Some(step as usize, self)
+        Progress::Some(step, self)
     }
 }
 
@@ -400,8 +396,8 @@ impl Scanner {
             if find == compare {
                 ctx.code_iter.nth(len - 1);
                 ctx.lexeme.push_str(alter.1);
-                ctx.index += len as i64;    // TODO As usize instead of i64
-                return Progress::Some(len as usize, ctx);
+                ctx.index += len;
+                return Progress::Some(len, ctx);
             }
         }
 
@@ -417,8 +413,8 @@ impl Scanner {
             if *find == compare {
                 ctx.code_iter.nth(len - 1);
                 ctx.lexeme.push_str(&alter.1);
-                ctx.index += len as i64;    // TODO As usize instead of i64
-                return Progress::Some(len as usize, ctx);
+                ctx.index += len;
+                return Progress::Some(len, ctx);
             }
         }
 
@@ -498,7 +494,7 @@ impl Scanner {
         }
         
         ctx.lexeme.push_str(find);
-        Progress::Some(step as usize, ctx)
+        Progress::Some(step, ctx)
     }
     
     fn scan_not<'s, T>(&self, rule: &Rule<T>, ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
