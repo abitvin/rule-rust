@@ -1,4 +1,4 @@
 [package]
 name = "rule"
-version = "0.8.6"
+version = "0.8.7"
 authors = ["Vincent van Ingen <code@abitvin.net>"]

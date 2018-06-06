@@ -11,7 +11,7 @@ use std::str::Chars;
 pub type BranchFn<T> = Option<Box<Fn(Vec<T>, &str) -> T>>;
 
 enum Progress<'s, T> {
-    Some(usize, ScanCtx<'s, T>),        // TODO Make struct to be more readable.
+    Some { steps: usize, ctx: ScanCtx<'s, T> },
     No(ScanCtx<'s, T>),
 }
 
@@ -31,6 +31,7 @@ struct _Rule<T> {
 
 #[derive(Debug)]
 pub struct RuleError {
+    // TODO Would be nice to have a line and a column.
     pub index: usize,
     pub msg: String,
 }
@@ -115,7 +116,7 @@ impl<'s, T> ScanCtx<'s, T> {
     }
 
     fn merge_with(mut self, mut source: ScanCtx<'s, T>, is_rule: bool, branch_fn: &BranchFn<T>) -> Progress<'s, T> {
-        let step = source.index - self.index;
+        let steps = source.index - self.index;
             
         if source.err_idx > self.err_idx {
             self.err_idx = source.err_idx;
@@ -131,7 +132,7 @@ impl<'s, T> ScanCtx<'s, T> {
             _ => self.branches.append(&mut source.branches),
         }
         
-        Progress::Some(step, self)
+        Progress::Some { steps, ctx: self }
     }
 }
 
@@ -301,7 +302,7 @@ impl<T> Rule<T> {
         let scanner = Scanner {};
 
         match scanner.run(self, ctx) {
-            Progress::Some(_, new_ctx) => ctx = new_ctx,
+            Progress::Some { steps: _, ctx: new_ctx } => ctx = new_ctx,
             Progress::No(new_ctx) => return Err(RuleError::from(new_ctx)),
         }
         
@@ -348,7 +349,7 @@ impl Scanner {
             };
 
             match progress {
-                Progress::Some(_, newer_ctx) => new_ctx = newer_ctx,
+                Progress::Some { steps: _, ctx: newer_ctx } => new_ctx = newer_ctx,
                 Progress::No(newer_ctx) => return Progress::No(self.update_error(ctx, newer_ctx)),
             }
         }
@@ -367,7 +368,7 @@ impl Scanner {
             
             ctx.lexeme.push(c);
             ctx.index += 1;
-            Progress::Some(1, ctx)
+            Progress::Some { steps: 1, ctx }
         } 
         else {
             Progress::No(ctx)
@@ -380,7 +381,7 @@ impl Scanner {
         if let Some(c) = n {
             ctx.lexeme.push(c);
             ctx.index += 1;
-            Progress::Some(1, ctx)
+            Progress::Some { steps: 1, ctx }
         } 
         else {
             Progress::No(ctx)
@@ -390,14 +391,14 @@ impl Scanner {
     fn scan_alter_leaf<'s, T>(&self, list: &Vec<(&'static str, &'static str)>, mut ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
         for alter in list {
             let find = alter.0;
-            let len = find.chars().count();
-            let compare: String = ctx.code_iter.clone().take(len).collect();
+            let steps = find.chars().count();
+            let compare: String = ctx.code_iter.clone().take(steps).collect();
 
             if find == compare {
-                ctx.code_iter.nth(len - 1);
+                ctx.code_iter.nth(steps - 1);
                 ctx.lexeme.push_str(alter.1);
-                ctx.index += len;
-                return Progress::Some(len, ctx);
+                ctx.index += steps;
+                return Progress::Some { steps, ctx };
             }
         }
 
@@ -407,14 +408,14 @@ impl Scanner {
     fn scan_alter_string_leaf<'s, T>(&self, list: &Vec<(String, String)>, mut ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
         for alter in list {
             let find = &alter.0;
-            let len = find.chars().count();
-            let compare: String = ctx.code_iter.clone().take(len).collect();
+            let steps = find.chars().count();
+            let compare: String = ctx.code_iter.clone().take(steps).collect();
 
             if *find == compare {
-                ctx.code_iter.nth(len - 1);
+                ctx.code_iter.nth(steps - 1);
                 ctx.lexeme.push_str(&alter.1);
-                ctx.index += len;
-                return Progress::Some(len, ctx);
+                ctx.index += steps;
+                return Progress::Some { steps, ctx };
             }
         }
 
@@ -426,7 +427,7 @@ impl Scanner {
 
         for r in rules {
             match self.run(r, new_ctx) {
-                Progress::Some(_, new_ctx) => {
+                Progress::Some { steps: _, ctx: new_ctx } => {
                     let r = r.0.borrow();
                     return ctx.merge_with(new_ctx, false, &r.branch_fn);
                 },
@@ -454,7 +455,7 @@ impl Scanner {
                 else {
                     ctx.lexeme.push(c);
                     ctx.index += 1;
-                    Progress::Some(1, ctx)
+                    Progress::Some { steps: 1, ctx }
                 }
             },
             None => {
@@ -466,7 +467,7 @@ impl Scanner {
     fn scan_eof_leaf<'s, T>(&self, mut ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
         if let None = ctx.code_iter.next() {
             ctx.index += 1;
-            Progress::Some(1, ctx)
+            Progress::Some { steps: 1, ctx }
         }
         else {
             Progress::No(ctx)
@@ -475,7 +476,7 @@ impl Scanner {
     
     fn scan_literal_leaf<'s, T>(&self, find: &str, mut ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
         let iter = find.chars();
-        let mut step = 0;
+        let mut steps = 0;
             
         for i in iter {
             let n = ctx.code_iter.next();
@@ -486,7 +487,7 @@ impl Scanner {
                 }
                     
                 ctx.index += 1;
-                step += 1;
+                steps += 1;
             }
             else {
                 return Progress::No(ctx);
@@ -494,15 +495,15 @@ impl Scanner {
         }
         
         ctx.lexeme.push_str(find);
-        Progress::Some(step, ctx)
+        Progress::Some { steps, ctx }
     }
     
     fn scan_not<'s, T>(&self, rule: &Rule<T>, ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
         let (new_ctx, ctx) = ctx.branch(&None);
 
         match self.run(rule, new_ctx) {
-            Progress::Some(_, _) => Progress::No(ctx),
-            Progress::No(_) => Progress::Some(0, ctx),
+            Progress::Some { steps: _, ctx: _ } => Progress::No(ctx),
+            Progress::No(_) => Progress::Some { steps: 0, ctx },
         }
     }
     
@@ -512,8 +513,8 @@ impl Scanner {
         
         loop {
             match self.run(rule, new_ctx) {
-                Progress::Some(progress, newer_ctx) => {
-                    if progress == 0 {
+                Progress::Some { steps, ctx: newer_ctx } => {
+                    if steps == 0 {
                         let r = rule.0.borrow();
                         return ctx.merge_with(newer_ctx, false, &r.branch_fn);
                     }
