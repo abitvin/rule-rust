@@ -33,7 +33,7 @@ impl Calc {
         Self { expr }
     }
 
-    fn eval(&self, expr: &str) -> Result<f64, Vec<RuleError>> {
+    fn eval(&self, expr: &str) -> Result<f64, RuleError> {
         self.expr.scan(expr).map(|x| x[0])
     }
 }
