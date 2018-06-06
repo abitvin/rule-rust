@@ -31,39 +31,38 @@ struct _Rule<T> {
 
 #[derive(Debug)]
 pub struct RuleError {
-    // TODO Would be nice to have a line and a column.
+    pub col: usize,
     pub index: usize,
+    pub line: usize,
     pub msg: String,
 }
 
 impl fmt::Display for RuleError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Parse error at {}: {}.", self.index, self.msg)
+        write!(f, "Error at line {}, column: {}, index: {}: {}.", self.line, self.col, self.index, self.msg)
     }
 }
 
 impl Error for RuleError {
     fn description(&self) -> &str {
-        "Parse error"       
+        "Rule error"
     }
 }
 
-impl Clone for RuleError {
-    fn clone(&self) -> Self {
-        Self {
-            index: self.index,
-            msg: self.msg.clone(),
-        }
-    }
-}
-
-impl<'s, T> From<ScanCtx<'s, T>> for RuleError {
-    fn from(ctx: ScanCtx<'s, T>) -> Self {
+impl RuleError {
+    fn new<T>(text: &str, ctx: ScanCtx<T>) -> Self {
         let msg = ctx.err_msg
             .map(|x| x.as_ref().clone())
             .unwrap_or(String::from("General parse error."));
-        
-        Self { index: ctx.err_idx, msg }
+
+        let pos = cursor_pos(&text[..ctx.err_idx]);
+
+        Self { 
+            col: pos.col,
+            index: ctx.err_idx,
+            line: pos.line,
+            msg, 
+        }
     }
 }
 
@@ -303,7 +302,7 @@ impl<T> Rule<T> {
 
         match scanner.run(self, ctx) {
             Progress::Some { steps: _, ctx: new_ctx } => ctx = new_ctx,
-            Progress::No(new_ctx) => return Err(RuleError::from(new_ctx)),
+            Progress::No(new_ctx) => return Err(RuleError::new(code, new_ctx)),
         }
         
         if let Some(_) = ctx.code_iter.next() {
@@ -318,7 +317,7 @@ impl<T> Rule<T> {
             
             */
             
-            Err(RuleError::from(ctx))
+            Err(RuleError::new(code ,ctx))
         }
         else {
             Ok(ctx.branches)
@@ -549,5 +548,43 @@ impl Scanner {
         }
 
         target_ctx
+    }
+}
+
+struct CursorPos {
+    col: usize,
+    line: usize,
+}
+
+fn cursor_pos(text: &str) -> CursorPos {
+    let old_osx: Rule<usize> = Rule::new(None);
+    old_osx.literal("\r");  // CR
+
+    let unix: Rule<usize> = Rule::new(None);
+    unix.literal("\n");     // LF
+
+    let win: Rule<usize> = Rule::new(None);
+    win.literal("\r\n");    // CR+LF
+
+    let new_line: Rule<usize> = Rule::new(None);
+    new_line.any_of(vec![&win, &old_osx, &unix]);
+
+    let ch: Rule<usize> = Rule::new(None);
+    ch.any_char_except(vec!['\r', '\n']);
+
+    let line: Rule<usize> = Rule::new(Some(Box::new(|_, l| l.len())));
+    line.at_least(1, &ch).maybe(&new_line);
+
+    let line_counter: Rule<usize> = Rule::new(None);
+    line_counter.none_or_many(&line);
+
+    if let Ok(lines) = line_counter.scan(text) {
+        let line = lines.len();
+        let col = if line == 0 { 0 } else { lines[lines.len() - 1] };
+
+        CursorPos { col, line }
+    }
+    else {
+        unreachable!()
     }
 }
