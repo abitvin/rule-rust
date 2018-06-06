@@ -3,6 +3,8 @@
 // This file may not be copied, modified, or distributed except according to those terms.
 
 use std::cell::RefCell;
+use std::error::Error;
+use std::fmt;
 use std::rc::Rc;
 use std::str::Chars;
 
@@ -23,15 +25,26 @@ impl<T> Clone for Rule<T> {
 
 struct _Rule<T> {
     branch_fn: BranchFn<T>,
-    err_msg: Option<String>,
+    err_msg: Option<Rc<String>>,
     parts: Vec<ScanFn<T>>,
 }
 
-// TODO implement Error trait.
 #[derive(Debug)]
 pub struct RuleError {
     pub index: i64,
     pub msg: String,
+}
+
+impl fmt::Display for RuleError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Parse error at {}: {}.", self.index, self.msg)
+    }
+}
+
+impl Error for RuleError {
+    fn description(&self) -> &str {
+        "Parse error"       
+    }
 }
 
 impl Clone for RuleError {
@@ -45,10 +58,11 @@ impl Clone for RuleError {
 
 impl<'s, T> From<ScanCtx<'s, T>> for RuleError {
     fn from(ctx: ScanCtx<'s, T>) -> Self {
-        Self {
-            index: ctx.err_idx,
-            msg: ctx.err_msg.unwrap_or(String::from("General parse error.")),
-        }
+        let msg = ctx.err_msg
+            .map(|x| x.as_ref().clone())
+            .unwrap_or(String::from("General parse error."));
+        
+        Self { index: ctx.err_idx, msg }
     }
 }
 
@@ -70,29 +84,29 @@ struct ScanCtx<'s, T> {
     branches: Vec<T>,
     code_iter: Chars<'s>,
     err_idx: i64,
-    err_msg: Option<String>,    // TODO Can we use a borrow instead?
+    err_msg: Option<Rc<String>>,
     index: i64,                 // TODO Change to usize? No, because we use an iterator now. Or yes if we don't use Chars.
     lexeme: String,
 }
 
 impl<'s, T> ScanCtx<'s, T> {
-    fn new(code: &'s str, err_msg: Option<String>) -> Self {
+    fn new(code: &'s str, err_msg: &Option<Rc<String>>) -> Self {
         Self {
             branches: Vec::new(),
             code_iter: code.chars(),
             err_idx: 0,
-            err_msg,
+            err_msg: err_msg.clone(),
             index: 0,
             lexeme: String::new(),
         }
     }
 
-    fn branch(self, err_msg: Option<String>) -> (ScanCtx<'s, T>, ScanCtx<'s, T>) {
+    fn branch(self, err_msg: &Option<Rc<String>>) -> (ScanCtx<'s, T>, ScanCtx<'s, T>) {
         let new_ctx = ScanCtx {
             branches: Vec::new(),
             code_iter: self.code_iter.clone(),
             err_idx: self.index,
-            err_msg: err_msg.or(self.err_msg.clone()),
+            err_msg: err_msg.clone().or(self.err_msg.clone()),
             index: self.index,
             lexeme: String::new(),
         };
@@ -138,7 +152,7 @@ impl<T> Rule<T> {
         Rule { 
             0: Rc::new(RefCell::new(_Rule {
                 branch_fn: branch_fn,
-                err_msg,
+                err_msg: err_msg.map(|x| Rc::new(x)),
                 parts: Vec::new(),
             }))
         }
@@ -287,7 +301,7 @@ impl<T> Rule<T> {
             panic!("Rule is not defined.");
         }
         
-        let mut ctx = ScanCtx::new(code, r.err_msg.clone());
+        let mut ctx = ScanCtx::new(code, &r.err_msg);
         let scanner = Scanner {};
 
         match scanner.run(self, ctx) {
@@ -320,7 +334,7 @@ struct Scanner { }
 impl Scanner {
     fn run<'s, T>(&self, rule: &Rule<T>, ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
         let r = rule.0.borrow();
-        let (mut new_ctx, ctx) = ctx.branch(r.err_msg.clone());      // TODO Do we need to clone?
+        let (mut new_ctx, ctx) = ctx.branch(&r.err_msg);
         
         for p in &r.parts {
             let progress = match *p {
@@ -412,7 +426,7 @@ impl Scanner {
     }
     
     fn scan_any_of<'s, T>(&self, rules: &Vec<Rule<T>>, ctx: ScanCtx<'s, T>) -> Progress<'s,T> {
-        let (mut new_ctx, mut ctx) = ctx.branch(None);
+        let (mut new_ctx, mut ctx) = ctx.branch(&None);
 
         for r in rules {
             match self.run(r, new_ctx) {
@@ -423,7 +437,7 @@ impl Scanner {
                 Progress::No(some_ctx) => {
                     ctx = self.update_error(ctx, some_ctx);
 
-                    let ctxs = ctx.branch(None);
+                    let ctxs = ctx.branch(&None);
                     new_ctx = ctxs.0;
                     ctx = ctxs.1;
                 }
@@ -488,7 +502,7 @@ impl Scanner {
     }
     
     fn scan_not<'s, T>(&self, rule: &Rule<T>, ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
-        let (new_ctx, ctx) = ctx.branch(None);
+        let (new_ctx, ctx) = ctx.branch(&None);
 
         match self.run(rule, new_ctx) {
             Progress::Some(_, _) => Progress::No(ctx),
@@ -497,7 +511,7 @@ impl Scanner {
     }
     
     fn scan_rule_range<'s, T>(&self, min: u64, max: u64, rule: &Rule<T>, ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
-        let (mut new_ctx, ctx) = ctx.branch(None);
+        let (mut new_ctx, ctx) = ctx.branch(&None);
         let mut count = 0u64;
         
         loop {
