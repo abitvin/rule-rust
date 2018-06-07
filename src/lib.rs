@@ -572,21 +572,38 @@ fn cursor_pos(text: &str) -> CursorPos {
     let ch: Rule<usize> = Rule::new(None);
     ch.any_char_except(vec!['\r', '\n']);
 
-    let line: Rule<usize> = Rule::new(Some(Box::new(|_, l| l.len())));
-    line.at_least(1, &ch).maybe(&new_line);
+    let new_line_only: Rule<usize> = Rule::new(Some(Box::new(|_, _| 0)));
+    new_line_only.one(&new_line);
+
+    let text_and_new_line: Rule<usize> = Rule::new(Some(Box::new(|_, _| 0)));
+    text_and_new_line.at_least(1, &ch).one(&new_line);
+
+    let text_only: Rule<usize> = Rule::new(Some(Box::new(|_, l| l.len())));
+    text_only.at_least(1, &ch);
+
+    let line: Rule<usize> = Rule::new(None);
+    line.any_of(vec![&new_line_only, &text_and_new_line, &text_only]);
 
     let line_counter: Rule<usize> = Rule::new(None);
     line_counter.none_or_many(&line);
 
-    if let Ok(lines) = line_counter.scan(text) {
-        if lines.len() == 0 {
-            CursorPos { col: 0, line: 1 }
+    match line_counter.scan(text) {
+        Ok(lines) => {
+            if lines.len() == 0 {
+                // The scanned `text` is an empty string.
+                CursorPos { col: 0, line: 1 }
+            }
+            else if lines[lines.len() - 1] == 0 {
+                // Only the rules `text_and_new_line` where found.
+                CursorPos { col: 0, line: lines.len() + 1 }
+            }
+            else {
+                // The last line was `text_only`.
+                CursorPos { col: lines[lines.len() - 1], line: lines.len() }
+            }
+        },
+        Err(err) => {
+            unreachable!()
         }
-        else {
-            CursorPos { col: lines[lines.len() - 1], line: lines.len() }
-        }
-    }
-    else {
-        unreachable!()
     }
 }
