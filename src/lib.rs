@@ -39,7 +39,7 @@ pub struct RuleError {
 
 impl fmt::Display for RuleError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Error at line {}, column: {}, index: {}: {}.", self.line, self.col, self.index, self.msg)
+        write!(f, "Error at line {}, column: {}, index: {}: {}", self.line, self.col, self.index, self.msg)
     }
 }
 
@@ -579,10 +579,12 @@ fn cursor_pos(text: &str) -> CursorPos {
     line_counter.none_or_many(&line);
 
     if let Ok(lines) = line_counter.scan(text) {
-        let line = lines.len();
-        let col = if line == 0 { 0 } else { lines[lines.len() - 1] };
-
-        CursorPos { col, line }
+        if lines.len() == 0 {
+            CursorPos { col: 0, line: 1 }
+        }
+        else {
+            CursorPos { col: lines[lines.len() - 1], line: lines.len() }
+        }
     }
     else {
         unreachable!()
