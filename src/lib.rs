@@ -13,6 +13,7 @@ pub type BranchFn<T> = Option<Box<Fn(Vec<T>, &str) -> T>>;
 enum Progress<'s, T> {
     Some { steps: usize, ctx: ScanCtx<'s, T> },
     No(ScanCtx<'s, T>),
+    Error { idx: usize, msg: String },
 }
 
 pub struct Rule<T>(Rc<RefCell<_Rule<T>>>);
@@ -25,8 +26,7 @@ impl<T> Clone for Rule<T> {
 
 struct _Rule<T> {
     branch_fn: BranchFn<T>,
-    err_msg: Option<Rc<String>>,
-    parts: Vec<ScanFn<T>>,
+    instr: Vec<Instr<T>>,
 }
 
 #[derive(Debug)]
@@ -39,7 +39,7 @@ pub struct RuleError {
 
 impl fmt::Display for RuleError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Error at line {}, column: {}, index: {}: {}", self.line, self.col, self.index, self.msg)
+        write!(f, "Error found at line {}, column: {}, index: {}: {}", self.line, self.col, self.index, self.msg)
     }
 }
 
@@ -50,23 +50,34 @@ impl Error for RuleError {
 }
 
 impl RuleError {
-    fn new<T>(text: &str, ctx: ScanCtx<T>) -> Self {
-        let msg = ctx.err_msg
-            .map(|x| x.as_ref().clone())
-            .unwrap_or(String::from("General parse error."));
+    fn new(text: &str, index: usize, msg: String) -> Self {
+        let char_count = text.char_indices().count();
+        
+        let skip = if char_count == index && index > 0 {
+            index - 1
+        }
+        else {
+            index
+        };
 
-        let pos = cursor_pos(&text[..ctx.err_idx]);
+        let chr_idx = text.char_indices()
+            .skip(skip)
+            .next()
+            .map(|x| x.0)
+            .unwrap_or(0);
 
+        let pos = cursor_pos(&text[..chr_idx]);
+        
         Self { 
             col: pos.col,
-            index: ctx.err_idx,
             line: pos.line,
+            index, 
             msg, 
         }
     }
 }
 
-enum ScanFn<T> {
+enum Instr<T> {
     AnyChar,
     AnyCharExcept(Vec<char>),
     Alter(Vec<(&'static str, &'static str)>),
@@ -76,38 +87,43 @@ enum ScanFn<T> {
     Eof,
     Literal(&'static str),
     LiteralString(String),
+    NoBacktrack(String),
     Not(Rule<T>),
     Range(u64, u64, Rule<T>),
+}
+
+#[derive(Clone)]
+struct ScanErr { 
+    idx: usize, 
+    msg: String,
 }
 
 struct ScanCtx<'s, T> {
     branches: Vec<T>,
     code_iter: Chars<'s>,
-    err_idx: usize,
-    err_msg: Option<Rc<String>>,
     index: usize,
+    in_not: bool,   // True when we're scanning in a "not" rule. Which is a special state allowing backtracking even when a "no_backtracking" anchor has been set.
+                    // TODO Seems logical but I tested it and it doesn't matter if `in_not` is true or false on that a large tested codebase. Which is weird. Do special tests on this matter.
     lexeme: String,
 }
 
 impl<'s, T> ScanCtx<'s, T> {
-    fn new(code: &'s str, err_msg: &Option<Rc<String>>) -> Self {
+    fn new(code: &'s str) -> Self {
         Self {
             branches: Vec::new(),
             code_iter: code.chars(),
-            err_idx: 0,
-            err_msg: err_msg.clone(),
             index: 0,
+            in_not: false,
             lexeme: String::new(),
         }
     }
 
-    fn branch(self, err_msg: &Option<Rc<String>>) -> (ScanCtx<'s, T>, ScanCtx<'s, T>) {
+    fn branch(self, in_not: bool) -> (ScanCtx<'s, T>, ScanCtx<'s, T>) {
         let new_ctx = ScanCtx {
             branches: Vec::new(),
             code_iter: self.code_iter.clone(),
-            err_idx: self.index,
-            err_msg: err_msg.clone().or(self.err_msg.clone()),
             index: self.index,
+            in_not: self.in_not || in_not,
             lexeme: String::new(),
         };
 
@@ -116,12 +132,7 @@ impl<'s, T> ScanCtx<'s, T> {
 
     fn merge_with(mut self, mut source: ScanCtx<'s, T>, is_rule: bool, branch_fn: &BranchFn<T>) -> Progress<'s, T> {
         let steps = source.index - self.index;
-            
-        if source.err_idx > self.err_idx {
-            self.err_idx = source.err_idx;
-            self.err_msg = source.err_msg;
-        }
-
+        
         self.code_iter = source.code_iter;
         self.index = source.index;
         self.lexeme.push_str(&source.lexeme.to_string());
@@ -137,26 +148,17 @@ impl<'s, T> ScanCtx<'s, T> {
 
 impl<T> Rule<T> {
     pub fn new(branch_fn: BranchFn<T>) -> Self {
-        Self::new_(branch_fn, None)
-    }
-
-    pub fn new_with_err_msg(branch_fn: BranchFn<T>, err_msg: &str) -> Self {
-        Self::new_(branch_fn, Some(String::from(err_msg)))
-    }
-
-    fn new_(branch_fn: BranchFn<T>, err_msg: Option<String>) -> Self {
         Rule { 
             0: Rc::new(RefCell::new(_Rule {
                 branch_fn: branch_fn,
-                err_msg: err_msg.map(|x| Rc::new(x)),
-                parts: Vec::new(),
+                instr: Vec::new(),
             }))
         }
     }
 
     pub fn any_char(&self) -> &Self {
         let mut r = self.0.borrow_mut();
-        r.parts.push(ScanFn::AnyChar);
+        r.instr.push(Instr::AnyChar);
         self
     }
     
@@ -166,7 +168,7 @@ impl<T> Rule<T> {
         }
         
         let mut r = self.0.borrow_mut();
-        r.parts.push(ScanFn::AnyCharExcept(exclude));
+        r.instr.push(Instr::AnyCharExcept(exclude));
         self
     }
     
@@ -180,7 +182,7 @@ impl<T> Rule<T> {
         }
         
         let mut r = self.0.borrow_mut();
-        r.parts.push(ScanFn::Alter(list));
+        r.instr.push(Instr::Alter(list));
         self
     }
 
@@ -194,7 +196,7 @@ impl<T> Rule<T> {
         }
         
         let mut r = self.0.borrow_mut();
-        r.parts.push(ScanFn::AlterString(list));
+        r.instr.push(Instr::AlterString(list));
         self
     }
     
@@ -203,8 +205,8 @@ impl<T> Rule<T> {
 
         match rules.len() {
             0 => panic!("You must specify rules."),
-            1 => r.parts.push(ScanFn::Range(1, 1, rules[0].clone())),
-            _ => r.parts.push(ScanFn::AnyOf(rules.into_iter().map(|x| x.clone()).collect())),  
+            1 => r.instr.push(Instr::Range(1, 1, rules[0].clone())),
+            _ => r.instr.push(Instr::AnyOf(rules.into_iter().map(|x| x.clone()).collect())),  
         };
 
         self
@@ -212,37 +214,37 @@ impl<T> Rule<T> {
     
     pub fn at_least(&self, count: u64, rule: &Rule<T>) -> &Self {
         let mut r = self.0.borrow_mut();
-        r.parts.push(ScanFn::Range(count, u64::max_value(), rule.clone()));
+        r.instr.push(Instr::Range(count, u64::max_value(), rule.clone()));
         self
     }
     
     pub fn at_most(&self, count: u64, rule: &Rule<T>) -> &Self {
         let mut r = self.0.borrow_mut();
-        r.parts.push(ScanFn::Range(0, count, rule.clone()));
+        r.instr.push(Instr::Range(0, count, rule.clone()));
         self
     }
     
     pub fn between(&self, min: u64, max: u64, rule: &Rule<T>) -> &Self {
         let mut r = self.0.borrow_mut();
-        r.parts.push(ScanFn::Range(min, max, rule.clone()));
+        r.instr.push(Instr::Range(min, max, rule.clone()));
         self
     }
     
     pub fn char_in(&self, min: char, max: char) -> &Self {
         let mut r = self.0.borrow_mut();
-        r.parts.push(ScanFn::CharIn(min, max));
+        r.instr.push(Instr::CharIn(min, max));
         self
     }
     
     pub fn eof(&self) -> &Self {
         let mut r = self.0.borrow_mut();
-        r.parts.push(ScanFn::Eof);
+        r.instr.push(Instr::Eof);
         self
     }
     
     pub fn exact(&self, count: u64, rule: &Rule<T>) -> &Self {
         let mut r = self.0.borrow_mut();
-        r.parts.push(ScanFn::Range(count, count, rule.clone()));
+        r.instr.push(Instr::Range(count, count, rule.clone()));
         self
     }
     
@@ -252,7 +254,7 @@ impl<T> Rule<T> {
         }
 
         let mut r = self.0.borrow_mut();   
-        r.parts.push(ScanFn::Literal(&text));
+        r.instr.push(Instr::Literal(&text));
         self
     }
 
@@ -262,51 +264,58 @@ impl<T> Rule<T> {
         }
             
         let mut r = self.0.borrow_mut();
-        r.parts.push(ScanFn::LiteralString(text));
+        r.instr.push(Instr::LiteralString(text));
         self
     }
 
     pub fn maybe(&self, rule: &Rule<T>) -> &Self {
         let mut r = self.0.borrow_mut();
-        r.parts.push(ScanFn::Range(0, 1, rule.clone()));
+        r.instr.push(Instr::Range(0, 1, rule.clone()));
+        self
+    }
+
+    pub fn no_backtrack(&self, err_msg: String) -> &Self {
+        let mut r = self.0.borrow_mut();
+        r.instr.push(Instr::NoBacktrack(err_msg));
         self
     }
 
     pub fn none_or_many(&self, rule: &Rule<T>) -> &Self {
         let mut r = self.0.borrow_mut();
-        r.parts.push(ScanFn::Range(0, u64::max_value(), rule.clone()));
+        r.instr.push(Instr::Range(0, u64::max_value(), rule.clone()));
         self
     }
     
     pub fn not(&self, rule: &Rule<T>) -> &Self {
         let mut r = self.0.borrow_mut();
-        r.parts.push(ScanFn::Not(rule.clone()));
+        r.instr.push(Instr::Not(rule.clone()));
         self
     }
     
     pub fn one(&self, rule: &Rule<T>) -> &Self {
         let mut r = self.0.borrow_mut();
-        r.parts.push(ScanFn::Range(1, 1, rule.clone()));
+        r.instr.push(Instr::Range(1, 1, rule.clone()));
         self
     }
 
     pub fn scan(&self, code: &str) -> Result<Vec<T>, RuleError> {
         let r = self.0.borrow();
             
-        if r.parts.len() == 0 {
+        if r.instr.len() == 0 {
             panic!("Rule is not defined.");
         }
         
-        let mut ctx = ScanCtx::new(code, &r.err_msg);
-        let scanner = Scanner {};
+        let mut ctx = ScanCtx::new(code);
+        let scanner = Scanner::new();
 
         match scanner.run(self, ctx) {
             Progress::Some { steps: _, ctx: new_ctx } => ctx = new_ctx,
-            Progress::No(new_ctx) => return Err(RuleError::new(code, new_ctx)),
+            Progress::No(new_ctx) => return Err(RuleError::new(code, new_ctx.index, String::from("Syntax error TEST1."))),       // TODO
+            Progress::Error { idx, msg } => return Err(RuleError::new(code, idx, msg)),
         }
         
         if let Some(_) = ctx.code_iter.next() {
-            /*
+            /* TODO Really check this out!
             TODO Do we need these checks?
             if ctx.has_eof {
                 ctx.index -= 1;
@@ -317,7 +326,7 @@ impl<T> Rule<T> {
             
             */
             
-            Err(RuleError::new(code ,ctx))
+            Err(RuleError::new(code, ctx.index, String::from("Syntax error TEST2.")))        // TODO
         }
         else {
             Ok(ctx.branches)
@@ -325,31 +334,50 @@ impl<T> Rule<T> {
     }
 }
 
-struct Scanner { }
+struct Scanner { 
+    err: RefCell<ScanErr>,
+}
 
 impl Scanner {
+    fn new() -> Self {
+        Scanner {
+            err: RefCell::new(ScanErr { idx: 0, msg: String::from("Syntax error.") }),
+        }
+    }
+
     fn run<'s, T>(&self, rule: &Rule<T>, ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
         let r = rule.0.borrow();
-        let (mut new_ctx, ctx) = ctx.branch(&r.err_msg);
+        let (mut new_ctx, ctx) = ctx.branch(false);
         
-        for p in &r.parts {
+        for p in &r.instr {
             let progress = match *p {
-                ScanFn::AnyChar => self.scan_any_char_leaf(new_ctx),
-                ScanFn::AnyCharExcept(ref exclude) => self.scan_any_char_except_leaf(&exclude, new_ctx),
-                ScanFn::Alter(ref alter) => self.scan_alter_leaf(&alter, new_ctx),
-                ScanFn::AlterString(ref alter) => self.scan_alter_string_leaf(&alter, new_ctx),
-                ScanFn::AnyOf(ref rules) => self.scan_any_of(rules, new_ctx),
-                ScanFn::CharIn(min, max) => self.scan_char_in_leaf(min, max, new_ctx),
-                ScanFn::Eof => self.scan_eof_leaf(new_ctx),
-                ScanFn::Literal(text) => self.scan_literal_leaf(&text, new_ctx),
-                ScanFn::LiteralString(ref text) => self.scan_literal_leaf(&text, new_ctx),
-                ScanFn::Not(ref r) => self.scan_not(r, new_ctx),
-                ScanFn::Range(min, max, ref r) => self.scan_rule_range(min, max, r, new_ctx),
+                // Leaves
+                Instr::AnyChar => self.scan_any_char_leaf(new_ctx),
+                Instr::AnyCharExcept(ref exclude) => self.scan_any_char_except_leaf(&exclude, new_ctx),
+                Instr::Alter(ref alter) => self.scan_alter_leaf(&alter, new_ctx),
+                Instr::AlterString(ref alter) => self.scan_alter_string_leaf(&alter, new_ctx),
+                Instr::CharIn(min, max) => self.scan_char_in_leaf(min, max, new_ctx),
+                Instr::Eof => self.scan_eof_leaf(new_ctx),
+                Instr::Literal(text) => self.scan_literal_leaf(&text, new_ctx),
+                Instr::LiteralString(ref text) => self.scan_literal_leaf(&text, new_ctx),
+                
+                // Non leaves
+                Instr::AnyOf(ref rules) => self.scan_any_of(rules, new_ctx),
+                Instr::Not(ref r) => self.scan_not(r, new_ctx),
+                Instr::Range(min, max, ref r) => self.scan_rule_range(min, max, r, new_ctx),
+                
+                // No backtrack
+                Instr::NoBacktrack(ref err_msg) => {
+                    let mut err = self.err.borrow_mut();
+                    *err = ScanErr { idx: new_ctx.index, msg: err_msg.clone() };
+                    Progress::Some { steps: 0, ctx: new_ctx }
+                },
             };
 
             match progress {
                 Progress::Some { steps: _, ctx: newer_ctx } => new_ctx = newer_ctx,
-                Progress::No(newer_ctx) => return Progress::No(self.update_error(ctx, newer_ctx)),
+                Progress::No(_) => return self.negative_progress(ctx),
+                Progress::Error { idx, msg } => return Progress::Error { idx, msg },
             }
         }
         
@@ -422,27 +450,26 @@ impl Scanner {
     }
     
     fn scan_any_of<'s, T>(&self, rules: &Vec<Rule<T>>, ctx: ScanCtx<'s, T>) -> Progress<'s,T> {
-        let (mut new_ctx, mut ctx) = ctx.branch(&None);
-
+        let (mut new_ctx, ctx) = ctx.branch(false);
+        
         for r in rules {
             match self.run(r, new_ctx) {
                 Progress::Some { steps: _, ctx: new_ctx } => {
                     let r = r.0.borrow();
                     return ctx.merge_with(new_ctx, false, &r.branch_fn);
                 },
-                Progress::No(some_ctx) => {
-                    ctx = self.update_error(ctx, some_ctx);
-
-                    let ctxs = ctx.branch(&None);
-                    new_ctx = ctxs.0;
-                    ctx = ctxs.1;
+                Progress::No(prev_new_ctx) => {
+                    new_ctx = prev_new_ctx;
+                },
+                Progress::Error { idx, msg } => {
+                    return Progress::Error { idx, msg };
                 }
             }
         }
 
-        Progress::No(self.update_error(ctx, new_ctx))
+        self.negative_progress(ctx)
     }
-    
+
     fn scan_char_in_leaf<'s, T>(&self, min: char, max: char, mut ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
         let c = ctx.code_iter.next();
 
@@ -498,16 +525,17 @@ impl Scanner {
     }
     
     fn scan_not<'s, T>(&self, rule: &Rule<T>, ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
-        let (new_ctx, ctx) = ctx.branch(&None);
+        let (new_ctx, ctx) = ctx.branch(true);
 
         match self.run(rule, new_ctx) {
             Progress::Some { steps: _, ctx: _ } => Progress::No(ctx),
             Progress::No(_) => Progress::Some { steps: 0, ctx },
+            Progress::Error { idx: _, msg: _ } => unreachable!(),
         }
     }
     
     fn scan_rule_range<'s, T>(&self, min: u64, max: u64, rule: &Rule<T>, ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
-        let (mut new_ctx, ctx) = ctx.branch(&None);
+        let (mut new_ctx, ctx) = ctx.branch(false);
         let mut count = 0u64;
         
         loop {
@@ -525,9 +553,12 @@ impl Scanner {
                         break;
                     }
                 },
-                Progress::No(initial_ctx) => {
-                    new_ctx = initial_ctx;
+                Progress::No(prev_new_ctx) => {
+                    new_ctx = prev_new_ctx;
                     break;
+                },
+                Progress::Error { idx, msg } => {
+                    return Progress::Error { idx, msg };
                 }
             }
         }
@@ -537,17 +568,24 @@ impl Scanner {
             ctx.merge_with(new_ctx, false, &r.branch_fn)
         }
         else {
-            Progress::No(self.update_error(ctx, new_ctx))
+            self.negative_progress(ctx)
         }
     }
 
-    fn update_error<'s, T>(&self, mut target_ctx: ScanCtx<'s, T>, source_ctx: ScanCtx<'s, T>) -> ScanCtx<'s, T> {
-        if source_ctx.err_idx >= target_ctx.err_idx {
-            target_ctx.err_idx = source_ctx.err_idx;
-            target_ctx.err_msg = source_ctx.err_msg;
+    fn negative_progress<'s, T>(&self, ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
+        if ctx.in_not {
+            Progress::No(ctx)
         }
+        else {
+            let err = self.err.borrow();
 
-        target_ctx
+            if ctx.index < err.idx {
+                Progress::Error { idx: err.idx, msg: err.msg.clone() }
+            }
+            else {
+                Progress::No(ctx)
+            }
+        }
     }
 }
 
@@ -587,23 +625,21 @@ fn cursor_pos(text: &str) -> CursorPos {
     let line_counter: Rule<usize> = Rule::new(None);
     line_counter.none_or_many(&line);
 
-    match line_counter.scan(text) {
-        Ok(lines) => {
-            if lines.len() == 0 {
-                // The scanned `text` is an empty string.
-                CursorPos { col: 0, line: 1 }
-            }
-            else if lines[lines.len() - 1] == 0 {
-                // Only the rules `text_and_new_line` where found.
-                CursorPos { col: 0, line: lines.len() + 1 }
-            }
-            else {
-                // The last line was `text_only`.
-                CursorPos { col: lines[lines.len() - 1], line: lines.len() }
-            }
-        },
-        Err(err) => {
-            unreachable!()
+    if let Ok(lines) = line_counter.scan(text) {
+        if lines.len() == 0 {
+            // The scanned `text` is an empty string.
+            CursorPos { col: 0, line: 1 }
         }
+        else if lines[lines.len() - 1] == 0 {
+            // Only the rules `text_and_new_line` where found.
+            CursorPos { col: 0, line: lines.len() + 1 }
+        }
+        else {
+            // The last line was `text_only`.
+            CursorPos { col: lines[lines.len() - 1], line: lines.len() }
+        }
+    }
+    else {
+        unreachable!()
     }
 }
