@@ -1,4 +1,3 @@
-extern crate rule;
 use rule::Rule;
 
 #[test]
@@ -16,7 +15,7 @@ fn alter() {
     let a = Rule::new(None);
     a.alter(alterations);
 
-    let f = |_: Vec<i32>, l: &str| {
+    let f = |_, l: &str| {
         assert_eq!(l, "<AAA<BBB>CCC>");
         111
     }; 

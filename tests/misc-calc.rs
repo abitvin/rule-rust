@@ -1,4 +1,3 @@
-extern crate rule;
 use rule::{Rule, RuleError};
 
 struct Calc {

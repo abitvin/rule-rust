@@ -1,11 +1,10 @@
-extern crate rule;
 use rule::Rule;
 
 #[test]
 fn all() {
     let code = "abcdefg";
     
-    let f = |_: Vec<bool>, l: &str| {
+    let f = |_, l: &str| {
         assert_eq!(l, "abcdefg");
         true
     };

@@ -1,11 +1,10 @@
-extern crate rule;
 use rule::Rule;
 
 #[test]
 fn all_except() {
     let code = "abc";
 
-    let f = |_: Vec<u32>, l: &str| {
+    let f = |_, l: &str| {
         assert_eq!(l, "abc");
         123
     };

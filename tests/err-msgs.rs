@@ -1,4 +1,4 @@
-extern crate rule;
+/* TODO Update this test.
 use rule::Rule;
 
 #[test]
@@ -8,9 +8,9 @@ fn err_msgs() {
     let msg_abc = "Expected character 'a', 'b' or 'c'.";
     let msg_apple = "Expected text \"apple\".";
 
-    let banana: Rule<()> = Rule::new_with_err_msg(None, msg_banana);
-    banana.literal("banana");
-
+    let banana: Rule<()> = Rule::new(None);
+    banana.literal("banana").no_backtrack("");
+    
     let a: Rule<()> = Rule::new(None);
     a.literal("a").one(&banana);
 
@@ -19,7 +19,7 @@ fn err_msgs() {
 
     let c: Rule<()> = Rule::new(None);
     c.literal("c");
-
+    /*
     let abc: Rule<()> = Rule::new_with_err_msg(None, msg_abc);
     abc.any_of(vec![&c, &b, &a]);
 
@@ -70,4 +70,42 @@ fn err_msgs() {
     else {
         assert!(false);
     }
+    */
 }
+
+#[test]
+fn backtrack_err_msgs() {
+    let a: Rule<()> = Rule::new(None);
+    a.literal("a");
+
+    let b: Rule<()> = Rule::new(None);
+    b.literal("b");
+
+    let c: Rule<()> = Rule::new(None);
+    c.literal("c");
+
+    let abc_or_block: Rule<()> = Rule::new(None);
+    let block: Rule<()> = Rule::new(None);
+
+    abc_or_block.any_of(vec![&c, &b, &a, &block]);
+    block.literal("[").no_backtrack("Expected a closing bracket.").at_least(1, &abc_or_block).literal("]");
+
+    let root: Rule<()> = Rule::new(None);
+    root.at_least(1, &abc_or_block);
+
+    if let Err(err) = root.scan("abcabc[abcabc[aa]aa]aaa") {
+        println!("{}", err);
+        assert!(false);
+    }
+    else {
+        assert!(false);
+    }
+
+    /*if let Ok(_) = root.scan("abcabc[abcabc]") {
+        assert!(true);
+    }
+    else {
+        assert!(false);
+    }*/
+}
+*/

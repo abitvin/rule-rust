@@ -1,21 +1,20 @@
-extern crate rule;
 use rule::Rule;
 
 #[test]
 fn any_of() {
     let code = "aaabbbccc";
     
-    let aaa_fn = |_: Vec<i32>, l: &str| {
+    let aaa_fn = |_, l: &str| {
         assert_eq!(l, "aaa");
         111
     }; 
     
-    let bbb_fn = |_: Vec<i32>, l: &str| {
+    let bbb_fn = |_, l: &str| {
         assert_eq!(l, "bbb");
         222
     };
     
-    let ccc_fn = |_: Vec<i32>, l: &str| {
+    let ccc_fn = |_, l: &str| {
         assert_eq!(l, "ccc");
         333
     };
