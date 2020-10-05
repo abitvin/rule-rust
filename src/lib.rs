@@ -4,7 +4,6 @@
 
 // TODO Test start error.
 // TODO Test succes
-// TODO Make cursor_pos() a const.
 // TODO There are some todo notes in the Grammar library that should probably be fixed in this library.
 
 use std::cell::RefCell;
