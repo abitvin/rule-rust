@@ -2,6 +2,10 @@
 // Licensed under the MIT license <LICENSE.md or http://opensource.org/licenses/MIT>
 // This file may not be copied, modified, or distributed except according to those terms.
 
+// TODO Remove Rust warnings
+// TODO Test start error.
+// TODO Test succes
+
 use std::cell::RefCell;
 use std::error::Error;
 use std::fmt;
@@ -324,7 +328,7 @@ impl<T> Rule<T> {
             
             */
             
-            Err(RuleError::new(code, ctx.index, format!("Scan error: Successfull scan stopped at {}.", ctx.index)))
+            Err(RuleError::new(code, ctx.index, format!("Scan error: Successful scan stopped at {}.", ctx.index)))
         }
         else {
             Ok(ctx.branches)
