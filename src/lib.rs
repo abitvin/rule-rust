@@ -1,10 +1,11 @@
-// Copyright (c) 2015-2018 Vincent van Ingen <code@abitvin.net>
+// Copyright (c) 2015-2020 Vincent van Ingen <code@abitvin.net>
 // Licensed under the MIT license <LICENSE.md or http://opensource.org/licenses/MIT>
 // This file may not be copied, modified, or distributed except according to those terms.
 
 // TODO Test start error.
 // TODO Test succes
 // TODO Make cursor_pos() a const.
+// TODO There are some todo notes in the Grammar library that should probably be fixed in this library.
 
 use std::cell::RefCell;
 use std::error::Error;
