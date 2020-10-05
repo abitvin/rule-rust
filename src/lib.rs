@@ -32,7 +32,7 @@ struct _Rule<T> {
 #[derive(Debug)]
 pub struct RuleError {
     pub col: usize,
-    pub index: usize,
+    pub index: usize,   // TODO Remove this one.
     pub line: usize,
     pub msg: String,
 }
@@ -310,7 +310,7 @@ impl<T> Rule<T> {
 
         match scanner.run(self, ctx) {
             Progress::Some { steps: _, ctx: new_ctx } => ctx = new_ctx,
-            Progress::No(new_ctx) => return Err(RuleError::new(code, new_ctx.index, String::from("Syntax error TEST1."))),       // TODO
+            Progress::No(new_ctx) => return Err(RuleError::new(code, new_ctx.index, String::from("Scan error: Syntax error at the beginning."))),
             Progress::Error { idx, msg } => return Err(RuleError::new(code, idx, msg)),
         }
         
@@ -326,7 +326,7 @@ impl<T> Rule<T> {
             
             */
             
-            Err(RuleError::new(code, ctx.index, String::from("Syntax error TEST2.")))        // TODO
+            Err(RuleError::new(code, ctx.index, format!("Scan error: Successfull scan stopped at {}.", ctx.index)))
         }
         else {
             Ok(ctx.branches)
