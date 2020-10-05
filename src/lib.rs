@@ -32,14 +32,13 @@ struct _Rule<T> {
 #[derive(Debug)]
 pub struct RuleError {
     pub col: usize,
-    pub index: usize,   // TODO Remove this one.
     pub line: usize,
     pub msg: String,
 }
 
 impl fmt::Display for RuleError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Error found at line {}, column: {}, index: {}: {}", self.line, self.col, self.index, self.msg)
+        write!(f, "Error found at line {}, column: {}: {}", self.line, self.col, self.msg)
     }
 }
 
@@ -71,7 +70,6 @@ impl RuleError {
         Self { 
             col: pos.col,
             line: pos.line,
-            index, 
             msg, 
         }
     }
