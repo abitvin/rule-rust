@@ -2,9 +2,9 @@
 // Licensed under the MIT license <LICENSE.md or http://opensource.org/licenses/MIT>
 // This file may not be copied, modified, or distributed except according to those terms.
 
-// TODO Remove Rust warnings
 // TODO Test start error.
 // TODO Test succes
+// TODO Make default constructor with identity (None) branch function.
 
 use std::cell::RefCell;
 use std::error::Error;
@@ -12,7 +12,7 @@ use std::fmt;
 use std::rc::Rc;
 use std::str::Chars;
 
-pub type BranchFn<T> = Option<Box<Fn(Vec<T>, &str) -> T>>;
+pub type BranchFn<T> = Option<Box<dyn Fn(Vec<T>, &str) -> T>>;  // TODO Would be very nice to remove the Box here.
 
 enum Progress<'s, T> {
     Some { steps: usize, ctx: ScanCtx<'s, T> },
