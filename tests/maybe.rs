@@ -9,13 +9,13 @@ fn maybe() {
         "...xxx...",
     ];
     
-    let dots = Rule::new(None);
+    let dots = Rule::default();
     dots.literal("...");
             
-    let xxx = Rule::new(Some(Box::new(|_, _| 'x')));
+    let xxx = Rule::new(Box::new(|_, _| 'x'));
     xxx.literal("xxx");
             
-    let root: Rule<char> = Rule::new(None);
+    let root: Rule<char> = Rule::default();
     root.maybe(&dots).one(&xxx).maybe(&dots);
     
     for c in codes {

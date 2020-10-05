@@ -2,16 +2,16 @@ use rule::Rule;
 
 #[test]
 fn char_in() {
-    let digit = Rule::new(Some(Box::new(|_, l| (l.chars().next().unwrap() as u32) - 48)));
+    let digit = Rule::new(Box::new(|_, l| (l.chars().next().unwrap() as u32) - 48));
     digit.char_in('0', '9');
     
-    let af = Rule::new(Some(Box::new(|_, l| (l.chars().next().unwrap() as u32) - 55)));
+    let af = Rule::new(Box::new(|_, l| (l.chars().next().unwrap() as u32) - 55));
     af.char_in('A', 'F');
 
-    let hex = Rule::new(None);
+    let hex = Rule::default();
     hex.any_of(vec![&digit, &af]);
 
-    let parser: Rule<u32> = Rule::new(Some(Box::new(|b, _| {
+    let parser: Rule<u32> = Rule::new(Box::new(|b, _| {
         let mut m = 1u32;
         let mut n = 0u32;
         
@@ -21,7 +21,7 @@ fn char_in() {
         }
         
         n
-    })));
+    }));
 
     parser.between(1, 8, &hex);
     

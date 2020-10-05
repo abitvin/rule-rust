@@ -4,10 +4,10 @@ use rule::Rule;
 fn at_least() {
     let code = "xxxx";
     
-    let x = Rule::new(Some(Box::new(|_, _| 10)));
+    let x = Rule::new(Box::new(|_, _| 10));
     x.literal("x");
     
-    let test1: Rule<i32> = Rule::new(None);
+    let test1: Rule<i32> = Rule::default();
     test1.at_least(3, &x);
     
     if let Ok(branches) = test1.scan(&code) {
@@ -20,7 +20,7 @@ fn at_least() {
         assert!(false);
     }
 
-    let test2: Rule<i32> = Rule::new(None);
+    let test2: Rule<i32> = Rule::default();
     test2.at_least(4, &x);
     
     if let Ok(branches) = test2.scan(&code) {
@@ -33,7 +33,7 @@ fn at_least() {
         assert!(false);
     }
 
-    let test3: Rule<i32> = Rule::new(None);
+    let test3: Rule<i32> = Rule::default();
     test3.at_least(5, &x);
     
     if let Ok(_) = test3.scan(&code) {

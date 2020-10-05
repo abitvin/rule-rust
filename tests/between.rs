@@ -4,10 +4,10 @@ use rule::Rule;
 fn between() {
     let code = "zzz";
     
-    let z = Rule::new(Some(Box::new(|_, _| 34)));
+    let z = Rule::new(Box::new(|_, _| 34));
     z.literal("z");
             
-    let test1: Rule<i32> = Rule::new(None);
+    let test1: Rule<i32> = Rule::default();
     test1.between(1, 3, &z);
 
     if let Ok(branches) = test1.scan(&code) {
@@ -19,7 +19,7 @@ fn between() {
         assert!(true);
     }
 
-    let test2: Rule<i32> = Rule::new(None);
+    let test2: Rule<i32> = Rule::default();
     test2.between(0, 10, &z);
     
     if let Ok(branches) = test2.scan(&code) {
@@ -31,7 +31,7 @@ fn between() {
         assert!(false);
     }
 
-    let test3: Rule<i32> = Rule::new(None);
+    let test3: Rule<i32> = Rule::default();
     test3.between(4, 5, &z);
     
     if let Ok(_) = test3.scan(&code) {

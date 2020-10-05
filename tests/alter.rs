@@ -12,7 +12,7 @@ fn alter() {
         ("中", "CCC"),
     ];
     
-    let a = Rule::new(None);
+    let a = Rule::default();
     a.alter(alterations);
 
     let f = |_, l: &str| {
@@ -20,7 +20,7 @@ fn alter() {
         111
     }; 
     
-    let r: Rule<i32> = Rule::new(Some(Box::new(f)));
+    let r: Rule<i32> = Rule::new(Box::new(f));
     r.exact(7, &a);
     
     if let Ok(branches) = r.scan(&code) {

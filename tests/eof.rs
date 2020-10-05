@@ -4,7 +4,7 @@ use rule::Rule;
 fn eof() {
     let code = "123";
     
-    let r: Rule<char> = Rule::new(Some(Box::new(|_, _| 'A')));
+    let r: Rule<char> = Rule::new(Box::new(|_, _| 'A'));
     r.literal("123").eof();
     
     if let Ok(branches) = r.scan(&code) {

@@ -4,7 +4,7 @@
 
 // TODO Test start error.
 // TODO Test succes
-// TODO Make default constructor with identity (None) branch function.
+// TODO Make cursor_pos() a const.
 
 use std::cell::RefCell;
 use std::error::Error;
@@ -12,7 +12,7 @@ use std::fmt;
 use std::rc::Rc;
 use std::str::Chars;
 
-pub type BranchFn<T> = Option<Box<dyn Fn(Vec<T>, &str) -> T>>;  // TODO Would be very nice to remove the Box here.
+pub type BranchFn<T> = Box<dyn Fn(Vec<T>, &str) -> T>;  // TODO Would be very nice to remove the Box here.
 
 enum Progress<'s, T> {
     Some { steps: usize, ctx: ScanCtx<'s, T> },
@@ -29,7 +29,7 @@ impl<T> Clone for Rule<T> {
 }
 
 struct _Rule<T> {
-    branch_fn: BranchFn<T>,
+    branch_fn: Option<BranchFn<T>>,
     instr: Vec<Instr<T>>,
 }
 
@@ -132,7 +132,7 @@ impl<'s, T> ScanCtx<'s, T> {
         (new_ctx, self)
     }
 
-    fn merge_with(mut self, mut source: ScanCtx<'s, T>, is_rule: bool, branch_fn: &BranchFn<T>) -> Progress<'s, T> {
+    fn merge_with(mut self, mut source: ScanCtx<'s, T>, is_rule: bool, branch_fn: &Option<BranchFn<T>>) -> Progress<'s, T> {
         let steps = source.index - self.index;
         
         self.code_iter = source.code_iter;
@@ -148,11 +148,22 @@ impl<'s, T> ScanCtx<'s, T> {
     }
 }
 
+impl<T> Default for Rule<T> {
+    fn default() -> Self {
+        Rule { 
+            0: Rc::new(RefCell::new(_Rule {
+                branch_fn: None,
+                instr: Vec::new(),
+            }))
+        }
+    }
+}
+
 impl<T> Rule<T> {
     pub fn new(branch_fn: BranchFn<T>) -> Self {
         Rule { 
             0: Rc::new(RefCell::new(_Rule {
-                branch_fn: branch_fn,
+                branch_fn: Some(branch_fn),
                 instr: Vec::new(),
             }))
         }
@@ -597,34 +608,34 @@ struct CursorPos {
 }
 
 fn cursor_pos(text: &str) -> CursorPos {
-    let old_osx: Rule<usize> = Rule::new(None);
+    let old_osx: Rule<usize> = Rule::default();
     old_osx.literal("\r");  // CR
 
-    let unix: Rule<usize> = Rule::new(None);
+    let unix: Rule<usize> = Rule::default();
     unix.literal("\n");     // LF
 
-    let win: Rule<usize> = Rule::new(None);
+    let win: Rule<usize> = Rule::default();
     win.literal("\r\n");    // CR+LF
 
-    let new_line: Rule<usize> = Rule::new(None);
+    let new_line: Rule<usize> = Rule::default();
     new_line.any_of(vec![&win, &old_osx, &unix]);
 
-    let ch: Rule<usize> = Rule::new(None);
+    let ch: Rule<usize> = Rule::default();
     ch.any_char_except(vec!['\r', '\n']);
 
-    let new_line_only: Rule<usize> = Rule::new(Some(Box::new(|_, _| 0)));
+    let new_line_only: Rule<usize> = Rule::new(Box::new(|_, _| 0));
     new_line_only.one(&new_line);
 
-    let text_and_new_line: Rule<usize> = Rule::new(Some(Box::new(|_, _| 0)));
+    let text_and_new_line: Rule<usize> = Rule::new(Box::new(|_, _| 0));
     text_and_new_line.at_least(1, &ch).one(&new_line);
 
-    let text_only: Rule<usize> = Rule::new(Some(Box::new(|_, l| l.len())));
+    let text_only: Rule<usize> = Rule::new(Box::new(|_, l| l.len()));
     text_only.at_least(1, &ch);
 
-    let line: Rule<usize> = Rule::new(None);
+    let line: Rule<usize> = Rule::default();
     line.any_of(vec![&new_line_only, &text_and_new_line, &text_only]);
 
-    let line_counter: Rule<usize> = Rule::new(None);
+    let line_counter: Rule<usize> = Rule::default();
     line_counter.none_or_many(&line);
 
     if let Ok(lines) = line_counter.scan(text) {

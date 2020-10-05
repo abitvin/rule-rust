@@ -35,25 +35,25 @@ fn bug_0_5_12_test_empty_string() {
         7
     };
 
-    let ws = Rule::new(None);
+    let ws = Rule::default();
     ws.literal(" ");
 
-    let none_or_many_ws = Rule::new(None);
+    let none_or_many_ws = Rule::default();
     none_or_many_ws.none_or_many(&ws);
 
-    let stmt = Rule::new(Some(Box::new(stmt_fn)));
+    let stmt = Rule::new(Box::new(stmt_fn));
     stmt.literal("stmt");
 
-    let ws_plus_stmt = Rule::new(None);
+    let ws_plus_stmt = Rule::default();
     ws_plus_stmt.one(&none_or_many_ws).one(&stmt);
     
-    let stmts = Rule::new(None);
+    let stmts = Rule::default();
     stmts.one(&stmt).none_or_many(&ws_plus_stmt);
     
-    let block = Rule::new(Some(Box::new(block_fn)));
+    let block = Rule::new(Box::new(block_fn));
     block.maybe(&stmts);
     
-    let root = Rule::new(Some(Box::new(root_fn)));
+    let root = Rule::new(Box::new(root_fn));
     root.one(&none_or_many_ws).one(&block).one(&none_or_many_ws);
 
     let code = "";
@@ -83,25 +83,25 @@ fn bug_0_5_12_test_with_content() {
         7
     };
 
-    let ws = Rule::new(None);
+    let ws = Rule::default();
     ws.literal(" ");
 
-    let none_or_many_ws = Rule::new(None);
+    let none_or_many_ws = Rule::default();
     none_or_many_ws.none_or_many(&ws);
 
-    let stmt = Rule::new(Some(Box::new(stmt_fn)));
+    let stmt = Rule::new(Box::new(stmt_fn));
     stmt.literal("stmt");
 
-    let ws_plus_stmt = Rule::new(None);
+    let ws_plus_stmt = Rule::default();
     ws_plus_stmt.one(&none_or_many_ws).one(&stmt);
     
-    let stmts = Rule::new(None);
+    let stmts = Rule::default();
     stmts.one(&stmt).none_or_many(&ws_plus_stmt);
     
-    let block = Rule::new(Some(Box::new(block_fn)));
+    let block = Rule::new(Box::new(block_fn));
     block.maybe(&stmts);
     
-    let root = Rule::new(Some(Box::new(root_fn)));
+    let root = Rule::new(Box::new(root_fn));
     root.one(&none_or_many_ws).one(&block).one(&none_or_many_ws);
 
     let code = "  stmt    stmt   stmt  ";

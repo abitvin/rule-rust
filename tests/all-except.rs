@@ -9,10 +9,10 @@ fn all_except() {
         123
     };
     
-    let c = Rule::new(None);
+    let c = Rule::default();
     c.any_char_except(vec!['A', 'B', 'C', 'D']);
     
-    let r: Rule<u32> = Rule::new(Some(Box::new(f)));
+    let r: Rule<u32> = Rule::new(Box::new(f));
     r.exact(3, &c);
     
     if let Ok(branches) = r.scan(&code) {

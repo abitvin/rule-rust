@@ -19,19 +19,19 @@ fn any_of() {
         333
     };
     
-    let aaa = Rule::new(Some(Box::new(aaa_fn)));
+    let aaa = Rule::new(Box::new(aaa_fn));
     aaa.literal("aaa");
     
-    let bbb = Rule::new(Some(Box::new(bbb_fn)));
+    let bbb = Rule::new(Box::new(bbb_fn));
     bbb.literal("bbb");
     
-    let ccc = Rule::new(Some(Box::new(ccc_fn)));
+    let ccc = Rule::new(Box::new(ccc_fn));
     ccc.literal("ccc");
     
-    let any_of_these = Rule::new(None);
+    let any_of_these = Rule::default();
     any_of_these.any_of(vec![&aaa, &bbb, &ccc]);
     
-    let root: Rule<i32> = Rule::new(None);
+    let root: Rule<i32> = Rule::default();
     root.exact(3, &any_of_these);
     
     if let Ok(branches) = root.scan(&code) {
