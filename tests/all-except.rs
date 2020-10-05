@@ -12,7 +12,7 @@ fn all_except() {
     let c = Rule::default();
     c.any_char_except(vec!['A', 'B', 'C', 'D']);
     
-    let r: Rule<u32> = Rule::new(Box::new(f));
+    let r: Rule<u32> = Rule::new(&f);
     r.exact(3, &c);
     
     if let Ok(branches) = r.scan(&code) {

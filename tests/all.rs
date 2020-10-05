@@ -9,7 +9,7 @@ fn all() {
         true
     };
     
-    let r: Rule<bool> = Rule::new(Box::new(f));
+    let r: Rule<bool> = Rule::new(&f);
     r.any_char().any_char().any_char().any_char().any_char().any_char().any_char();
     
     if let Ok(branches) = r.scan(&code) {

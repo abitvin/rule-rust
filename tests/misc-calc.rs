@@ -1,19 +1,19 @@
 use rule::{Rule, RuleError};
 
-struct Calc {
-    expr: Rule<f64>,
+struct Calc<'a> {
+    expr: Rule<'a, f64>,
 }
 
-impl Calc {
+impl<'a> Calc<'a> {
     fn new() -> Self {
         let expr: Rule<f64> = Rule::default();
-        let add: Rule<f64> = Rule::new(Box::new(|b, _| if b.len() == 1 { b[0] } else { b[0] + b[1] } ));
-        let mul: Rule<f64> = Rule::new(Box::new(|b, _| if b.len() == 1 { b[0] } else { b[0] * b[1] } ));
+        let add: Rule<f64> = Rule::new(&|b, _| if b.len() == 1 { b[0] } else { b[0] + b[1] } );
+        let mul: Rule<f64> = Rule::new(&|b, _| if b.len() == 1 { b[0] } else { b[0] * b[1] } );
 
         let digit = Rule::default();
         digit.char_in('0', '9');
 
-        let num = Rule::new(Box::new(|_, l| l.parse().unwrap()));
+        let num = Rule::new(&|_, l| l.parse().unwrap());
         num.at_least(1, &digit);
 
         let group = Rule::default();
