@@ -320,17 +320,6 @@ impl<'a, T> Rule<'a, T> {
         }
         
         if let Some(_) = ctx.code_iter.next() {
-            /* TODO Really check this out!
-            TODO Do we need these checks?
-            if ctx.has_eof {
-                ctx.index -= 1;
-            }
-            
-            if (ctx.index !== ctx.code.length)
-                return RuleResult.failed<TBranch, TMeta>(ctx.errors);
-            
-            */
-
             Err(RuleError::new(code, ctx.index, format!("Syntax error.")))
         }
         else {
