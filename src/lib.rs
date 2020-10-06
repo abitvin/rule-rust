@@ -3,6 +3,7 @@
 // This file may not be copied, modified, or distributed except according to those terms.
 
 // TODO There are some todo notes in the Grammar library that should probably be fixed in this library.
+// TODO Needs more and fine grained unit tests.
 
 use std::cell::RefCell;
 use std::error::Error;
@@ -378,7 +379,6 @@ impl Scanner {
         ctx.merge_with(new_ctx, true, &r.branch_fn)
     }
     
-    // TODO What about a char with more codepoints?
     fn scan_any_char_except_leaf<'s, T>(&self, exclude: &Vec<char>, mut ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
         let n = ctx.code_iter.next();
         
