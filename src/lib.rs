@@ -2,8 +2,6 @@
 // Licensed under the MIT license <LICENSE.md or http://opensource.org/licenses/MIT>
 // This file may not be copied, modified, or distributed except according to those terms.
 
-// TODO Test start error.
-// TODO Test succes
 // TODO There are some todo notes in the Grammar library that should probably be fixed in this library.
 
 use std::cell::RefCell;
@@ -55,22 +53,16 @@ impl Error for RuleError {
 impl RuleError {
     fn new(text: &str, index: usize, msg: String) -> Self {
         let char_count = text.char_indices().count();
-        
-        let skip = if char_count == index && index > 0 {
-            index - 1
-        }
-        else {
-            index
+
+        let chr_idx = if char_count == index { 
+            text.len()
+        } 
+        else { 
+            text.char_indices().skip(index).next().map(|x| x.0).unwrap()
         };
 
-        let chr_idx = text.char_indices()
-            .skip(skip)
-            .next()
-            .map(|x| x.0)
-            .unwrap_or(0);
-
         let pos = cursor_pos(&text[..chr_idx]);
-        
+
         Self { 
             col: pos.col,
             line: pos.line,
@@ -323,7 +315,7 @@ impl<'a, T> Rule<'a, T> {
 
         match scanner.run(self, ctx) {
             Progress::Some { steps: _, ctx: new_ctx } => ctx = new_ctx,
-            Progress::No(new_ctx) => return Err(RuleError::new(code, new_ctx.index, String::from("Scan error: Syntax error at the beginning."))),
+            Progress::No(new_ctx) => return Err(RuleError::new(code, new_ctx.index, String::from("Syntax error."))),
             Progress::Error { idx, msg } => return Err(RuleError::new(code, idx, msg)),
         }
         
@@ -338,8 +330,8 @@ impl<'a, T> Rule<'a, T> {
                 return RuleResult.failed<TBranch, TMeta>(ctx.errors);
             
             */
-            
-            Err(RuleError::new(code, ctx.index, format!("Scan error: Successful scan stopped at {}.", ctx.index)))
+
+            Err(RuleError::new(code, ctx.index, format!("Syntax error.")))
         }
         else {
             Ok(ctx.branches)
@@ -629,7 +621,7 @@ fn cursor_pos(text: &str) -> CursorPos {
     let text_and_new_line: Rule<usize> = Rule::new(&|_, _| 0);
     text_and_new_line.at_least(1, &ch).one(&new_line);
 
-    let text_only: Rule<usize> = Rule::new(&|_, l| l.len());
+    let text_only: Rule<usize> = Rule::new(&|_, l| l.char_indices().count());
     text_only.at_least(1, &ch);
 
     let line: Rule<usize> = Rule::default();
