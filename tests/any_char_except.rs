@@ -1,16 +1,16 @@
 use rule::Rule;
 
 #[test]
-fn all_except() {
-    let code = "abc";
+fn any_char_except() {
+    let code = "a💝c";
 
     let f = |_, l: &str| {
-        assert_eq!(l, "abc");
+        assert_eq!(l, "a💝c");
         123
     };
     
     let c = Rule::default();
-    c.any_char_except(vec!['A', 'B', 'C', 'D']);
+    c.any_char_except(vec!['A', 'B', '中', '東']);
     
     let r: Rule<u32> = Rule::new(&f);
     r.exact(3, &c);
