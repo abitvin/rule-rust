@@ -12,7 +12,7 @@ fn any_char_except() {
     let c = Rule::default();
     c.any_char_except(vec!['A', 'B', '中', '東']);
     
-    let r: Rule<u32> = Rule::new(&f);
+    let r: Rule<u32> = Rule::new(f);
     r.exact(3, &c);
     
     if let Ok(branches) = r.scan(&code) {

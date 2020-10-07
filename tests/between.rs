@@ -4,7 +4,7 @@ use rule::Rule;
 fn between() {
     let code = "zzz";
     
-    let z = Rule::new(&|_, _| 34);
+    let z = Rule::new(|_, _| 34);
     z.literal("z");
             
     let test1: Rule<i32> = Rule::default();

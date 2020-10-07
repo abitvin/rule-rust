@@ -20,7 +20,7 @@ fn alter() {
         111
     }; 
     
-    let r: Rule<i32> = Rule::new(&f);
+    let r: Rule<i32> = Rule::new(f);
     r.exact(7, &a);
     
     if let Ok(branches) = r.scan(&code) {

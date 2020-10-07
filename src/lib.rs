@@ -11,7 +11,7 @@ use std::fmt;
 use std::rc::Rc;
 use std::str::Chars;
 
-pub type BranchFn<'a, T> = &'a dyn Fn(Vec<T>, &str) -> T;
+pub type BranchFn<T> = fn(Vec<T>, &str) -> T;
 
 enum Progress<'s, T> {
     Some { steps: usize, ctx: ScanCtx<'s, T> },
@@ -19,17 +19,17 @@ enum Progress<'s, T> {
     Error { idx: usize, msg: String },
 }
 
-pub struct Rule<'a, T>(Rc<RefCell<_Rule<'a, T>>>);
+pub struct Rule<T>(Rc<RefCell<_Rule<T>>>);
 
-impl<'a, T> Clone for Rule<'a, T> {
+impl<T> Clone for Rule<T> {
     fn clone(&self) -> Self {
         Self { 0: self.0.clone() }
     }
 }
 
-struct _Rule<'a, T> {
-    branch_fn: Option<BranchFn<'a, T>>,
-    instr: Vec<Instr<'a, T>>,
+struct _Rule<T> {
+    branch_fn: Option<BranchFn<T>>,
+    instr: Vec<Instr<T>>,
 }
 
 #[derive(Debug)]
@@ -72,19 +72,19 @@ impl RuleError {
     }
 }
 
-enum Instr<'a, T> {
+enum Instr<T> {
     AnyChar,
     AnyCharExcept(Vec<char>),
     Alter(Vec<(&'static str, &'static str)>),
     AlterString(Vec<(String, String)>),
-    AnyOf(Vec<Rule<'a, T>>),
+    AnyOf(Vec<Rule<T>>),
     CharIn(char, char),
     Eof,
     Literal(&'static str),
     LiteralString(String),
     NoBacktrack(String),
-    Not(Rule<'a, T>),
-    Range(u64, u64, Rule<'a, T>),
+    Not(Rule<T>),
+    Range(u64, u64, Rule<T>),
 }
 
 #[derive(Clone)]
@@ -141,7 +141,7 @@ impl<'s, T> ScanCtx<'s, T> {
     }
 }
 
-impl<'a, T> Default for Rule<'a, T> {
+impl<T> Default for Rule<T> {
     fn default() -> Self {
         Rule { 
             0: Rc::new(RefCell::new(_Rule {
@@ -152,8 +152,8 @@ impl<'a, T> Default for Rule<'a, T> {
     }
 }
 
-impl<'a, T> Rule<'a, T> {
-    pub fn new(branch_fn: BranchFn<'a, T>) -> Self {
+impl<T> Rule<T> {
+    pub fn new(branch_fn: BranchFn<T>) -> Self {
         Rule { 
             0: Rc::new(RefCell::new(_Rule {
                 branch_fn: Some(branch_fn),
@@ -206,7 +206,7 @@ impl<'a, T> Rule<'a, T> {
         self
     }
     
-    pub fn any_of(&self, rules: Vec<&Rule<'a, T>>) -> &Self {
+    pub fn any_of(&self, rules: Vec<&Rule<T>>) -> &Self {
         let mut r = self.0.borrow_mut();
 
         match rules.len() {
@@ -218,19 +218,19 @@ impl<'a, T> Rule<'a, T> {
         self
     }
     
-    pub fn at_least(&self, count: u64, rule: &Rule<'a, T>) -> &Self {
+    pub fn at_least(&self, count: u64, rule: &Rule<T>) -> &Self {
         let mut r = self.0.borrow_mut();
         r.instr.push(Instr::Range(count, u64::max_value(), rule.clone()));
         self
     }
     
-    pub fn at_most(&self, count: u64, rule: &Rule<'a, T>) -> &Self {
+    pub fn at_most(&self, count: u64, rule: &Rule<T>) -> &Self {
         let mut r = self.0.borrow_mut();
         r.instr.push(Instr::Range(0, count, rule.clone()));
         self
     }
     
-    pub fn between(&self, min: u64, max: u64, rule: &Rule<'a, T>) -> &Self {
+    pub fn between(&self, min: u64, max: u64, rule: &Rule<T>) -> &Self {
         let mut r = self.0.borrow_mut();
         r.instr.push(Instr::Range(min, max, rule.clone()));
         self
@@ -248,7 +248,7 @@ impl<'a, T> Rule<'a, T> {
         self
     }
     
-    pub fn exact(&self, count: u64, rule: &Rule<'a, T>) -> &Self {
+    pub fn exact(&self, count: u64, rule: &Rule<T>) -> &Self {
         let mut r = self.0.borrow_mut();
         r.instr.push(Instr::Range(count, count, rule.clone()));
         self
@@ -274,7 +274,7 @@ impl<'a, T> Rule<'a, T> {
         self
     }
 
-    pub fn maybe(&self, rule: &Rule<'a, T>) -> &Self {
+    pub fn maybe(&self, rule: &Rule<T>) -> &Self {
         let mut r = self.0.borrow_mut();
         r.instr.push(Instr::Range(0, 1, rule.clone()));
         self
@@ -286,19 +286,19 @@ impl<'a, T> Rule<'a, T> {
         self
     }
 
-    pub fn none_or_many(&self, rule: &Rule<'a, T>) -> &Self {
+    pub fn none_or_many(&self, rule: &Rule<T>) -> &Self {
         let mut r = self.0.borrow_mut();
         r.instr.push(Instr::Range(0, u64::max_value(), rule.clone()));
         self
     }
     
-    pub fn not(&self, rule: &Rule<'a, T>) -> &Self {
+    pub fn not(&self, rule: &Rule<T>) -> &Self {
         let mut r = self.0.borrow_mut();
         r.instr.push(Instr::Not(rule.clone()));
         self
     }
     
-    pub fn one(&self, rule: &Rule<'a, T>) -> &Self {
+    pub fn one(&self, rule: &Rule<T>) -> &Self {
         let mut r = self.0.borrow_mut();
         r.instr.push(Instr::Range(1, 1, rule.clone()));
         self
@@ -604,13 +604,13 @@ fn cursor_pos(text: &str) -> CursorPos {
     let ch: Rule<usize> = Rule::default();
     ch.any_char_except(vec!['\r', '\n']);
 
-    let new_line_only: Rule<usize> = Rule::new(&|_, _| 0);
+    let new_line_only: Rule<usize> = Rule::new(|_, _| 0);
     new_line_only.one(&new_line);
 
-    let text_and_new_line: Rule<usize> = Rule::new(&|_, _| 0);
+    let text_and_new_line: Rule<usize> = Rule::new(|_, _| 0);
     text_and_new_line.at_least(1, &ch).one(&new_line);
 
-    let text_only: Rule<usize> = Rule::new(&|_, l| l.char_indices().count());
+    let text_only: Rule<usize> = Rule::new(|_, l| l.char_indices().count());
     text_only.at_least(1, &ch);
 
     let line: Rule<usize> = Rule::default();

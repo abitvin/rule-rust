@@ -2,7 +2,7 @@ use rule::Rule;
 
 #[test]
 fn no_backtrack_1() {
-    let root: Rule<bool> = Rule::new(&|_, _| false);
+    let root: Rule<bool> = Rule::new(|_, _| false);
     root.literal("東東").no_backtrack("Oops!".to_string()).literal("💝💝💝");
     
     if let Err(err) = root.scan("東") {

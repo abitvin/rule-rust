@@ -4,7 +4,7 @@ use rule::Rule;
 fn at_most() {
     let code = "yyy";
     
-    let y = Rule::new(&|_, _| 14);
+    let y = Rule::new(|_, _| 14);
     y.literal("y");
             
     let test1: Rule<i32> = Rule::default();

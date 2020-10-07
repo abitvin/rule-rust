@@ -19,13 +19,13 @@ fn any_of() {
         333
     };
     
-    let aaa = Rule::new(&aaa_fn);
+    let aaa = Rule::new(aaa_fn);
     aaa.literal("aaa");
     
-    let bbb = Rule::new(&bbb_fn);
+    let bbb = Rule::new(bbb_fn);
     bbb.literal("bbb");
     
-    let ccc = Rule::new(&ccc_fn);
+    let ccc = Rule::new(ccc_fn);
     ccc.literal("ccc");
     
     let any_of_these = Rule::default();

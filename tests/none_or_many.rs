@@ -2,26 +2,26 @@ use rule::Rule;
 
 #[test]
 fn none_or_many() {
-    let dot = Rule::new(&|_, _| true);
+    let dot = Rule::new(|_, _| true);
     dot.literal(".");
             
-    let x = Rule::new(&|_, _| false);
+    let x = Rule::new(|_, _| false);
     x.literal("x");
             
-    let code1: Rule<bool> = Rule::new(&|b, l| {
+    let code1: Rule<bool> = Rule::new(|b, l| {
         assert_eq!(b.len(), 0);
         assert_eq!(l, "");
         false
     });
     
-    let code2: Rule<bool> = Rule::new(&|b, l| {
+    let code2: Rule<bool> = Rule::new(|b, l| {
         assert_eq!(b.len(), 1);
         assert_eq!(b[0], false);
         assert_eq!(l, "x");
         false
     });
     
-    let code3: Rule<bool> = Rule::new(&|b, l| {
+    let code3: Rule<bool> = Rule::new(|b, l| {
         assert_eq!(b.len(), 2);
         assert_eq!(b[0], true);
         assert_eq!(b[1], true);
@@ -29,7 +29,7 @@ fn none_or_many() {
         false
     });
     
-    let code4: Rule<bool> = Rule::new(&|b, l| {
+    let code4: Rule<bool> = Rule::new(|b, l| {
         assert_eq!(b.len(), 3);
         assert_eq!(b[0], false);
         assert_eq!(b[1], false);
@@ -38,7 +38,7 @@ fn none_or_many() {
         false
     });
     
-    let code5: Rule<bool> = Rule::new(&|b, l| {
+    let code5: Rule<bool> = Rule::new(|b, l| {
         assert_eq!(b.len(), 4);
         assert_eq!(b[0], true);
         assert_eq!(b[1], true);
