@@ -6,28 +6,28 @@ fn no_backtrack_1() {
     root.literal("東東").no_backtrack("Oops!".to_string()).literal("💝💝💝");
     
     if let Err(err) = root.scan("東") {
-        assert_eq!(format!("{}", err), "Error found at line 1, column: 0: Syntax error.".to_string());
+        assert_eq!(format!("{}", err), "Error found at line 1, column 0: Syntax error.".to_string());
     }
     else {
         assert!(false);
     }
     
     if let Err(err) = root.scan("東東") {
-        assert_eq!(format!("{}", err), "Error found at line 1, column: 2: Oops!".to_string());
+        assert_eq!(format!("{}", err), "Error found at line 1, column 2: Oops!".to_string());
     }
     else {
         assert!(false);
     }
 
     if let Err(err) = root.scan("東東a") {
-        assert_eq!(format!("{}", err), "Error found at line 1, column: 2: Oops!".to_string());
+        assert_eq!(format!("{}", err), "Error found at line 1, column 2: Oops!".to_string());
     }
     else {
         assert!(false);
     }
     
     if let Err(err) = root.scan("東東ab") {
-        assert_eq!(format!("{}", err), "Error found at line 1, column: 2: Oops!".to_string());
+        assert_eq!(format!("{}", err), "Error found at line 1, column 2: Oops!".to_string());
     }
     else {
         assert!(false);
@@ -41,7 +41,7 @@ fn no_backtrack_1() {
     }
     
     if let Err(err) = root.scan("東東💝💝💝banana") {
-        assert_eq!(format!("{}", err), "Error found at line 1, column: 5: Syntax error.".to_string());
+        assert_eq!(format!("{}", err), "Error found at line 1, column 5: Syntax error.".to_string());
     }
     else {
         assert!(false);
@@ -64,21 +64,21 @@ fn no_backtrack_2() {
     }
     
     if let Err(err) = root.scan("東東💝💝💝\n東") {
-        assert_eq!(format!("{}", err), "Error found at line 2, column: 0: Syntax error.".to_string());
+        assert_eq!(format!("{}", err), "Error found at line 2, column 0: Syntax error.".to_string());
     }
     else {
         assert!(false);
     }
     
     if let Err(err) = root.scan("東東💝💝💝\n東東💝💝💝\n東東💝💝💝") {
-        assert_eq!(format!("{}", err), "Error found at line 3, column: 0: Syntax error.".to_string());
+        assert_eq!(format!("{}", err), "Error found at line 3, column 0: Syntax error.".to_string());
     }
     else {
         assert!(false);
     }
 
     if let Err(err) = root.scan("東東💝💝💝\n東東💝💝💝\n東東💝💝💝\n東") {
-        assert_eq!(format!("{}", err), "Error found at line 4, column: 0: Syntax error.".to_string());
+        assert_eq!(format!("{}", err), "Error found at line 4, column 0: Syntax error.".to_string());
     }
     else {
         assert!(false);
@@ -101,21 +101,21 @@ fn no_backtrack_3() {
     }
     
     if let Err(err) = root.scan("東東💝💝💝\n東") {
-        assert_eq!(format!("{}", err), "Error found at line 2, column: 0: Syntax error.".to_string());
+        assert_eq!(format!("{}", err), "Error found at line 2, column 0: Syntax error.".to_string());
     }
     else {
         assert!(false);
     }
     
     if let Err(err) = root.scan("東東💝💝💝\n東東💝💝💝\n東東💝💝💝") {
-        assert_eq!(format!("{}", err), "Error found at line 3, column: 2: Yikes!".to_string());
+        assert_eq!(format!("{}", err), "Error found at line 3, column 2: Yikes!".to_string());
     }
     else {
         assert!(false);
     }
 
     if let Err(err) = root.scan("東東💝💝💝\n東東💝💝💝\n東東💝💝💝\n東") {
-        assert_eq!(format!("{}", err), "Error found at line 4, column: 0: Syntax error.".to_string());
+        assert_eq!(format!("{}", err), "Error found at line 4, column 0: Syntax error.".to_string());
     }
     else {
         assert!(false);

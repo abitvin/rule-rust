@@ -84,10 +84,10 @@ fn not_no_backtracks_should_be_ignored() {
     let no_monkey: Rule<i32> = Rule::default();
     no_monkey.not(&monkey).one(&gorilla);
     
-    assert_eq!(no_monkey.scan("").map_err(|x| format!("{}", x)).unwrap_err(), "Error found at line 1, column: 0: Syntax error.".to_string());
+    assert_eq!(no_monkey.scan("").map_err(|x| format!("{}", x)).unwrap_err(), "Error found at line 1, column 0: Syntax error.".to_string());
     assert!(no_monkey.scan("gorilla").is_ok());
-    assert_eq!(no_monkey.scan("monk").map_err(|x| format!("{}", x)).unwrap_err(), "Error found at line 1, column: 0: Syntax error.".to_string());
-    assert_eq!(no_monkey.scan("monkeybananagorilla").map_err(|x| format!("{}", x)).unwrap_err(), "Error found at line 1, column: 0: Syntax error.".to_string());
+    assert_eq!(no_monkey.scan("monk").map_err(|x| format!("{}", x)).unwrap_err(), "Error found at line 1, column 0: Syntax error.".to_string());
+    assert_eq!(no_monkey.scan("monkeybananagorilla").map_err(|x| format!("{}", x)).unwrap_err(), "Error found at line 1, column 0: Syntax error.".to_string());
 }
 
 #[test]

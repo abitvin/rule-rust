@@ -40,7 +40,7 @@ pub struct RuleError {
 
 impl fmt::Display for RuleError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Error found at line {}, column: {}: {}", self.line, self.col, self.msg)
+        write!(f, "Error found at line {}, column {}: {}", self.line, self.col, self.msg)
     }
 }
 
@@ -319,7 +319,7 @@ impl<T> Rule<T> {
         }
         
         if let Some(_) = ctx.code_iter.next() {
-            Err(RuleError::new(code, ctx.index, format!("Syntax error.")))
+            Err(RuleError::new(code, ctx.index, String::from("Syntax error.")))
         }
         else {
             Ok(ctx.branches)
