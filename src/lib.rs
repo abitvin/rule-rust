@@ -2,7 +2,6 @@
 // Licensed under the MIT license <LICENSE.md or http://opensource.org/licenses/MIT>
 // This file may not be copied, modified, or distributed except according to those terms.
 
-// TODO There are some todo notes in the Grammar library that should probably be fixed in this library.
 // TODO Needs more and fine grained unit tests.
 
 use std::cell::RefCell;
@@ -97,8 +96,7 @@ struct ScanCtx<'s, T> {
     branches: Vec<T>,
     code_iter: Chars<'s>,
     index: usize,
-    in_not: bool,   // True when we're scanning in a "not" rule. Which is a special state allowing backtracking even when a "no_backtracking" anchor has been set.
-                    // TODO Seems logical but I tested it and it doesn't matter if `in_not` is true or false on that a large tested codebase. Which is weird. Do special tests on this matter.
+    in_not: bool,
     lexeme: String,
 }
 
@@ -113,12 +111,12 @@ impl<'s, T> ScanCtx<'s, T> {
         }
     }
 
-    fn branch(self, in_not: bool) -> (ScanCtx<'s, T>, ScanCtx<'s, T>) {
+    fn branch(self) -> (ScanCtx<'s, T>, ScanCtx<'s, T>) {
         let new_ctx = ScanCtx {
             branches: Vec::new(),
             code_iter: self.code_iter.clone(),
             index: self.index,
-            in_not: self.in_not || in_not,
+            in_not: self.in_not,
             lexeme: String::new(),
         };
 
@@ -342,7 +340,7 @@ impl Scanner {
 
     fn run<'s, T>(&self, rule: &Rule<T>, ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
         let r = rule.0.borrow();
-        let (mut new_ctx, ctx) = ctx.branch(false);
+        let (mut new_ctx, ctx) = ctx.branch();
         
         for p in &r.instr {
             let progress = match *p {
@@ -363,15 +361,17 @@ impl Scanner {
                 
                 // No backtrack
                 Instr::NoBacktrack(ref err_msg) => {
-                    let mut err = self.err.borrow_mut();
-                    *err = ScanErr { idx: new_ctx.index, msg: err_msg.clone() };
+                    if new_ctx.in_not == false {
+                        let mut err = self.err.borrow_mut();
+                        *err = ScanErr { idx: new_ctx.index, msg: err_msg.clone() };
+                    }
                     Progress::Some { steps: 0, ctx: new_ctx }
                 },
             };
 
             match progress {
                 Progress::Some { steps: _, ctx: newer_ctx } => new_ctx = newer_ctx,
-                Progress::No(_) => return self.negative_progress(ctx),
+                Progress::No(_) => return self.no_or_error(ctx),
                 Progress::Error { idx, msg } => return Progress::Error { idx, msg },
             }
         }
@@ -444,7 +444,7 @@ impl Scanner {
     }
     
     fn scan_any_of<'s, T>(&self, rules: &Vec<Rule<T>>, ctx: ScanCtx<'s, T>) -> Progress<'s,T> {
-        let (mut new_ctx, ctx) = ctx.branch(false);
+        let (mut new_ctx, ctx) = ctx.branch();
         
         for r in rules {
             match self.run(r, new_ctx) {
@@ -461,7 +461,7 @@ impl Scanner {
             }
         }
 
-        self.negative_progress(ctx)
+        self.no_or_error(ctx)
     }
 
     fn scan_char_in_leaf<'s, T>(&self, min: char, max: char, mut ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
@@ -519,17 +519,18 @@ impl Scanner {
     }
     
     fn scan_not<'s, T>(&self, rule: &Rule<T>, ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
-        let (new_ctx, ctx) = ctx.branch(true);
+        let (mut new_ctx, ctx) = ctx.branch();
+        new_ctx.in_not = true;
 
         match self.run(rule, new_ctx) {
             Progress::Some { steps: _, ctx: _ } => Progress::No(ctx),
             Progress::No(_) => Progress::Some { steps: 0, ctx },
-            Progress::Error { idx: _, msg: _ } => unreachable!(),
+            Progress::Error{ idx: _, msg: _ } => Progress::Some { steps: 0, ctx },
         }
     }
     
     fn scan_rule_range<'s, T>(&self, min: u64, max: u64, rule: &Rule<T>, ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
-        let (mut new_ctx, ctx) = ctx.branch(false);
+        let (mut new_ctx, ctx) = ctx.branch();
         let mut count = 0u64;
         
         loop {
@@ -562,23 +563,18 @@ impl Scanner {
             ctx.merge_with(new_ctx, false, &r.branch_fn)
         }
         else {
-            self.negative_progress(ctx)
+            self.no_or_error(ctx)
         }
     }
+    
+    fn no_or_error<'s, T>(&self, ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
+        let err = self.err.borrow();
 
-    fn negative_progress<'s, T>(&self, ctx: ScanCtx<'s, T>) -> Progress<'s, T> {
-        if ctx.in_not {
-            Progress::No(ctx)
+        if ctx.index < err.idx {
+            Progress::Error { idx: err.idx, msg: err.msg.clone() }
         }
         else {
-            let err = self.err.borrow();
-
-            if ctx.index < err.idx {
-                Progress::Error { idx: err.idx, msg: err.msg.clone() }
-            }
-            else {
-                Progress::No(ctx)
-            }
+            Progress::No(ctx)
         }
     }
 }
