@@ -18,3 +18,10 @@ fn literal() {
         assert!(false);
     }
 }
+
+#[test]
+#[should_panic]
+fn empty_literal_should_panic() {
+    let empty: Rule<i32> = Rule::default();
+    empty.literal("");
+}

@@ -68,3 +68,14 @@ fn none_or_many() {
         assert!(false);
     }
 }
+
+#[test]
+fn none_or_many_scan_empty_should_succeed() {
+    let monkey = Rule::default();
+    monkey.literal("monkey");
+
+    let none_or_many_monkeys: Rule<i32> = Rule::default();
+    none_or_many_monkeys.none_or_many(&monkey);
+
+    assert!(none_or_many_monkeys.scan("").is_ok());
+}
