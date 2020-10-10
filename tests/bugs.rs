@@ -22,17 +22,17 @@ use rule::Rule;
 fn bug_0_5_12_test_empty_string() {
     let block_fn = |b: Vec<u32>, _: &str| {
         assert_eq!(b.len(), 0);
-        1
+        Ok(1)
     };
 
     let root_fn = |b: Vec<u32>, _: &str| {
         assert_eq!(b.len(), 1);
-        b[0]
+        Ok(b[0])
     };
 
     let stmt_fn = |b: Vec<u32>, _: &str| {
         assert_eq!(b.len(), 0);
-        7
+        Ok(7)
     };
 
     let ws = Rule::default();
@@ -70,17 +70,17 @@ fn bug_0_5_12_test_empty_string() {
 fn bug_0_5_12_test_with_content() {
     let block_fn = |b: Vec<u32>, _: &str| {
         assert_eq!(b.len(), 3);
-        1
+        Ok(1)
     };
 
     let root_fn = |b: Vec<u32>, _: &str| {
         assert_eq!(b.len(), 1);
-        b[0]
+        Ok(b[0])
     };
 
     let stmt_fn = |b: Vec<u32>, _: &str| {
         assert_eq!(b.len(), 0);
-        7
+        Ok(7)
     };
 
     let ws = Rule::default();

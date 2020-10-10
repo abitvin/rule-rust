@@ -2,10 +2,10 @@ use rule::Rule;
 
 #[test]
 fn char_in() {
-    let digit = Rule::new(|_, l| (l.chars().next().unwrap() as u32) - 48);
+    let digit = Rule::new(|_, l| Ok((l.chars().next().unwrap() as u32) - 48));
     digit.char_in('0', '9');
     
-    let af = Rule::new(|_, l| (l.chars().next().unwrap() as u32) - 55);
+    let af = Rule::new(|_, l| Ok((l.chars().next().unwrap() as u32) - 55));
     af.char_in('A', 'F');
 
     let hex = Rule::default();
@@ -20,7 +20,7 @@ fn char_in() {
             m <<= 4;
         }
         
-        n
+        Ok(n)
     });
 
     parser.between(1, 8, &hex);

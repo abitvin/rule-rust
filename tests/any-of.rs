@@ -6,17 +6,17 @@ fn any_of() {
     
     let aaa_fn = |_, l: &str| {
         assert_eq!(l, "aaa");
-        111
+        Ok(111)
     }; 
     
     let bbb_fn = |_, l: &str| {
         assert_eq!(l, "bbb");
-        222
+        Ok(222)
     };
     
     let ccc_fn = |_, l: &str| {
         assert_eq!(l, "ccc");
-        333
+        Ok(333)
     };
     
     let aaa = Rule::new(aaa_fn);

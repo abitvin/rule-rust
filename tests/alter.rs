@@ -17,7 +17,7 @@ fn alter() {
 
     let f = |_, l: &str| {
         assert_eq!(l, "<AAA<BBB>CCC>");
-        111
+        Ok(111)
     }; 
     
     let r: Rule<i32> = Rule::new(f);

@@ -6,7 +6,7 @@ fn any_char_except() {
 
     let f = |_, l: &str| {
         assert_eq!(l, "a💝c");
-        123
+        Ok(123)
     };
     
     let c = Rule::default();

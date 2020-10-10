@@ -4,13 +4,13 @@ use rule::Rule;
 fn one() {
     let code = "onetwothree";
     
-    let one: Rule<i32> = Rule::new(|_, _| 1);
+    let one: Rule<i32> = Rule::new(|_, _| Ok(1));
     one.literal("one");
     
-    let two: Rule<i32> = Rule::new(|_, _| 2);
+    let two: Rule<i32> = Rule::new(|_, _| Ok(2));
     two.literal("two");
     
-    let three: Rule<i32> = Rule::new(|_, _| 3);
+    let three: Rule<i32> = Rule::new(|_, _| Ok(3));
     three.literal("three");
     
     let root: Rule<i32> = Rule::default();

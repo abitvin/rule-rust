@@ -6,7 +6,7 @@ fn all() {
     
     let f = |_, l: &str| {
         assert_eq!(l, "abcdefg");
-        true
+        Ok(true)
     };
     
     let r: Rule<bool> = Rule::new(f);

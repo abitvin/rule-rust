@@ -2,23 +2,23 @@ use rule::Rule;
 
 #[test]
 fn none_or_many() {
-    let dot = Rule::new(|_, _| true);
+    let dot = Rule::new(|_, _| Ok(true));
     dot.literal(".");
             
-    let x = Rule::new(|_, _| false);
+    let x = Rule::new(|_, _| Ok(false));
     x.literal("x");
             
     let code1: Rule<bool> = Rule::new(|b, l| {
         assert_eq!(b.len(), 0);
         assert_eq!(l, "");
-        false
+        Ok(false)
     });
     
     let code2: Rule<bool> = Rule::new(|b, l| {
         assert_eq!(b.len(), 1);
         assert_eq!(b[0], false);
         assert_eq!(l, "x");
-        false
+        Ok(false)
     });
     
     let code3: Rule<bool> = Rule::new(|b, l| {
@@ -26,7 +26,7 @@ fn none_or_many() {
         assert_eq!(b[0], true);
         assert_eq!(b[1], true);
         assert_eq!(l, "..");
-        false
+        Ok(false)
     });
     
     let code4: Rule<bool> = Rule::new(|b, l| {
@@ -35,7 +35,7 @@ fn none_or_many() {
         assert_eq!(b[1], false);
         assert_eq!(b[2], true);
         assert_eq!(l, "xx.");
-        false
+        Ok(false)
     });
     
     let code5: Rule<bool> = Rule::new(|b, l| {
@@ -45,7 +45,7 @@ fn none_or_many() {
         assert_eq!(b[2], false);
         assert_eq!(b[3], false);
         assert_eq!(l, "..xx");
-        false
+        Ok(false)
     });
 
     if let Err(_) = code1.none_or_many(&dot).none_or_many(&x).none_or_many(&dot).scan("") {

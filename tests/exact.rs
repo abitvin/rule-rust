@@ -4,10 +4,10 @@ use rule::Rule;
 fn exact() {
     let code = "..........";
     
-    let dot = Rule::new(|_, _| '.');
+    let dot = Rule::new(|_, _| Ok('.'));
     dot.literal(".");
             
-    let nope = Rule::new(|_, _| 'x');
+    let nope = Rule::new(|_, _| Ok('x'));
     nope.literal("nope");
             
     let test1: Rule<char> = Rule::default();

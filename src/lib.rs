@@ -10,7 +10,7 @@ use std::fmt;
 use std::rc::Rc;
 use std::str::Chars;
 
-pub type BranchFn<T> = fn(Vec<T>, &str) -> T;
+pub type BranchFn<T> = fn(Vec<T>, &str) -> Result<T, String>;
 
 enum Progress<'s, T> {
     Some { steps: usize, ctx: ScanCtx<'s, T> },
@@ -131,7 +131,12 @@ impl<'s, T> ScanCtx<'s, T> {
         self.lexeme.push_str(&source.lexeme.to_string());
         
         match branch_fn {
-            Some(ref f) if is_rule => self.branches.push(f(source.branches, &source.lexeme)),
+            Some(ref f) if is_rule => {
+                match f(source.branches, &source.lexeme) {
+                    Ok(val) => self.branches.push(val),
+                    Err(msg) => return Progress::Error { idx: source.index - source.lexeme.char_indices().count(), msg },
+                }
+            },
             _ => self.branches.append(&mut source.branches),
         }
         
@@ -600,13 +605,13 @@ fn cursor_pos(text: &str) -> CursorPos {
     let ch: Rule<usize> = Rule::default();
     ch.any_char_except(vec!['\r', '\n']);
 
-    let new_line_only: Rule<usize> = Rule::new(|_, _| 0);
+    let new_line_only: Rule<usize> = Rule::new(|_, _| Ok(0));
     new_line_only.one(&new_line);
 
-    let text_and_new_line: Rule<usize> = Rule::new(|_, _| 0);
+    let text_and_new_line: Rule<usize> = Rule::new(|_, _| Ok(0));
     text_and_new_line.at_least(1, &ch).one(&new_line);
 
-    let text_only: Rule<usize> = Rule::new(|_, l| l.char_indices().count());
+    let text_only: Rule<usize> = Rule::new(|_, l| Ok(l.char_indices().count()));
     text_only.at_least(1, &ch);
 
     let line: Rule<usize> = Rule::default();

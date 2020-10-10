@@ -12,7 +12,7 @@ fn maybe() {
     let dots = Rule::default();
     dots.literal("...");
             
-    let xxx = Rule::new(|_, _| 'x');
+    let xxx = Rule::new(|_, _| Ok('x'));
     xxx.literal("xxx");
             
     let root: Rule<char> = Rule::default();
