@@ -8,8 +8,6 @@ use std::fmt;
 use std::rc::Rc;
 use std::str::Chars;
 
-pub type BranchFn<T> = fn(Vec<T>, &str) -> Result<T, String>;
-
 enum Progress<'s, T> {
     Some { steps: usize, ctx: ScanCtx<'s, T> },
     No(ScanCtx<'s, T>),
@@ -25,7 +23,7 @@ impl<T> Clone for Rule<T> {
 }
 
 struct _Rule<T> {
-    branch_fn: Option<BranchFn<T>>,
+    branch_fn: Option<Box<dyn Fn(Vec<T>, &str) -> Result<T, String>>>,
     instr: Vec<Instr<T>>,
 }
 
@@ -121,7 +119,7 @@ impl<'s, T> ScanCtx<'s, T> {
         (new_ctx, self)
     }
 
-    fn merge_with(mut self, mut source: ScanCtx<'s, T>, is_rule: bool, branch_fn: &Option<BranchFn<T>>) -> Progress<'s, T> {
+    fn merge_with(mut self, mut source: ScanCtx<'s, T>, is_rule: bool, branch_fn: &Option<impl Fn(Vec<T>, &str) -> Result<T, String>>) -> Progress<'s, T> {
         let steps = source.index - self.index;
         
         self.code_iter = source.code_iter;
@@ -154,10 +152,10 @@ impl<T> Default for Rule<T> {
 }
 
 impl<T> Rule<T> {
-    pub fn new(branch_fn: BranchFn<T>) -> Self {
+    pub fn new(branch_fn: impl Fn(Vec<T>, &str) -> Result<T, String> + 'static) -> Self {
         Rule { 
             0: Rc::new(RefCell::new(_Rule {
-                branch_fn: Some(branch_fn),
+                branch_fn: Some(Box::new(branch_fn)),
                 instr: Vec::new(),
             }))
         }
