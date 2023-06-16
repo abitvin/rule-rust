@@ -2,8 +2,6 @@
 // Licensed under the MIT license <LICENSE.md or http://opensource.org/licenses/MIT>
 // This file may not be copied, modified, or distributed except according to those terms.
 
-// TODO Needs more and fine grained unit tests.
-
 use std::cell::RefCell;
 use std::error::Error;
 use std::fmt;
